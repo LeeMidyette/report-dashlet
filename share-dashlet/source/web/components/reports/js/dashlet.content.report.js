@@ -577,7 +577,7 @@ function showFlashMessage(text, timeout){
 			optionsForFilter+='<option value="modifier">'+$msg('label.modificator')+'</option>';
 		}
 		if(byTypeValue!='type'){
-			optionsForFilter+='<option value="exact_type">'+$msg('label.extactType')+'</option>';
+			optionsForFilter+='<option value="exact_type">'+$msg('label.exactType')+'</option>';
 			optionsForFilter+='<option value="type_and_subtypes">'+$msg('label.typeAndSubtypes')+'</option>';
 		}
 		if(byTypeValue!='aspect'){

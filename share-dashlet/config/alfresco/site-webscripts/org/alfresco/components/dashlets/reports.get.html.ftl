@@ -46,7 +46,7 @@
 				<option value="type">${msg("label.typeModel")}</option>
 			</select></label>
 			<div id="ajax-loader-container" >
-					<img  src="${page.url.context}/components/reports/images/ajax_load_trans.gif" />
+					<img  src="${page.url.context}/res/components/reports/images/ajax_load_trans.gif" />
 			</div>		
 
 
@@ -139,7 +139,7 @@
 		<hr/>
 		<div id="button-container" >
 			<div id="downloadify-container"   class="initial-hidden" > <div id="downloadify-wrapper" > <div id="downloadify" class="text-center" > </div><div class="text-center"><i>${msg("label.downloadGraphic")}</i></div></div></div>
-			<div id="change-button-container" class="initial-hidden" ><div id="change-button-container-wrapper" > <a id="change-button"  href="#"><img src="${page.url.context}/components/reports/images/change.png" /></a><div><i>${msg("label.changeGraphic")}</i></div></div></div>
+			<div id="change-button-container" class="initial-hidden" ><div id="change-button-container-wrapper" > <a id="change-button"  href="#"><img src="${page.url.context}/res/components/reports/images/change.png" /></a><div><i>${msg("label.changeGraphic")}</i></div></div></div>
 		</div>
 		<br class="clear" />
 		
