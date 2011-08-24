@@ -1,0 +1,29 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE beans PUBLIC '-//SPRING//DTD BEAN 2.0//EN' 'http://www.springframework.org/dtd/spring-beans-2.0.dtd'>
+
+<beans>
+	<bean id="webscript.info.dashlet.reportstacks.get" 
+		class="info.dashlet.repository.webscript.ReportStacksWs"
+		parent="webscript">
+
+		<property name="admLuceneIndexerAndSearcherFactory" ref="admLuceneIndexerAndSearcherFactory" />
+		<property name="fileFolderService" ref="FileFolderService" />
+		<property name="namespaceService" ref="NamespaceService" />
+		<property name="nodeService" ref="NodeService" />
+		<property name="repository" ref="repositoryHelper" />
+		<property name="searchService" ref="searchService"/>
+		<property name="securizedSearchService" ref="SearchService"/>
+	</bean>
+
+	<bean id="webscript.info.dashlet.filtersvaluesquery.get" 
+		class="info.dashlet.repository.webscript.ReportFiltersValuesQueryWs"
+		parent="webscript">
+
+		<property name="dictionaryService" ref="DictionaryService" />
+		<property name="mimetypeService" ref="MimetypeService"/>
+		<property name="namespaceService" ref="NamespaceService" />
+		<property name="nodeService" ref="NodeService" />
+		<property name="personService" ref="PersonService" />
+		<property name="securizedSearchService" ref="SearchService"/>
+	</bean>
+</beans>

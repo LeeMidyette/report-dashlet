@@ -1,0 +1,197 @@
+<!--
+
+                            ***********************************
+                                 Alfresco module build script  
+                            ***********************************
+    
+    Original Author: Will Abson
+    Adapted by: Pedro Salido
+    
+    
+    Provides a set of targets for building extensions to Alfresco in AMP  archive 
+    formats. 
+        
+    For building AMP files, the files module.properties and file-mapping.properties are also required
+    in the project's root directory.
+    
+    During the build process, a temporary 'build' directory will be created in the base 
+    project directory. This may be removed at any time using the 'clean' target.
+
+-->
+<project basedir="." default="dist-amp" name="Alfresco Amp Build Script">
+
+   <!-- Allow override properties -->
+    <property file="build.properties" />
+    <property file="${user.home}/build.properties" />
+   
+   <!-- Property default values. May be overridden using above files or via command-line args -->
+    <property name="jar.name" value="alfresco-extension.jar" />
+    <property name="amp.name" value="alfresco-extension.amp" />
+    <property name="config.includes" value="**/*.*" />
+    <property name="config.excludes" value="" />
+    <property name="build.res.includes" value="**/*.*" />
+    <property name="build.res.excludes" value="**/*.native" />
+    <property name="yuicompress.warn" value="false" />
+    <property name="javac.debug" value="off" />
+
+
+   
+    <!-- Additional property values. Generally should not be overridden -->
+    <property name="config.dir" value="${basedir}/config" />
+    <property name="res.dir" value="${basedir}/source/resources" />
+    <property name="src.dir" value="${basedir}/source/java" />
+    <property name="build.dir" value="${basedir}/build" />
+    <property name="build.compile.dir" value="${build.dir}/classes" />
+    <property name="build.jar.dir" value="${build.dir}/jar" />
+    <property name="build.zip.dir" value="${build.dir}/war" />
+    <property name="build.amp.dir" value="${build.dir}/amp" />
+    <property name="dist.dir" value="${build.dir}/dist" />
+    <property name="lib.dir" value="${build.dir}/lib" />
+    <property name="amp.file.properties" value="module.properties" />
+    <property name="amp.file.mappings" value="file-mapping.properties" />
+    
+
+    <!-- Additional classpath and task definitions -->
+
+    <path id="yuicompressor.classpath">
+        <fileset dir="lib">
+            <include name="yuicompressor-2.4.2.jar"/>
+            <include name="yui-compressor-ant-task-0.5.jar"/>
+        </fileset>
+    </path>
+   
+    <taskdef name="yuicompress" classname="net.noha.tools.ant.yuicompressor.tasks.YuiCompressorTask">
+        <classpath>
+            <path refid="yuicompressor.classpath" />
+        </classpath>
+    </taskdef>
+
+
+    <path id="compile.classpath">
+        <fileset dir="${alfresco.sdk.dir}">
+            <include name="lib/server/dependencies/**/*.jar" />
+            <include name="lib/server/*.jar" />
+        </fileset>
+    </path>
+   
+    
+    
+    <!-- Main build target definitions -->
+    
+    
+   <!-- Clean out the build and distribution directories -->
+   <target name="clean" description="Clean out all build directories">
+      <delete dir="${build.dir}" />
+      <delete dir="${dist.dir}" />
+   </target>
+   
+   <!-- Create required prerequisite directory structure -->
+   <target name="prepare" description="Create initial build structures">
+       <mkdir dir="${build.dir}" />
+      <mkdir dir="${dist.dir}" />
+   </target>
+    
+    
+    
+    <!-- Compile Java source code -->
+    <target name="compile" description="Compile Java source code">
+        <mkdir dir="${build.compile.dir}" />
+        <javac srcdir="${src.dir}" destdir="${build.compile.dir}" debug="${javac.debug}">
+            <classpath>
+               <path refid="compile.classpath" />
+            </classpath>
+        </javac>
+    </target>
+    
+    <!--
+        Assemble the configuration and resource files in a JAR file structure. This mechanism 
+        was introduced in Alfresco 3.3 and allows Share extensions containing both repository and 
+        web-tier web scripts, Spring/Surf configuration and static assets to be added to the servlet 
+        container as a single library. For more complex extensions, AMP files should be used.
+        
+        This target excludes the files custom-slingshot-application-context.xml, share-config-custom.xml
+        and similar files from being copied into the classpath as these should not generally be included 
+        within JAR files as it could lead to multiple copies of them being present. If found however,
+        alfresco/web-extension/share-config-custom.xml will be copied into the META-INF directory,
+        from where it can be loaded in 3.4.
+    -->
+    <target name="build-jar" description="Build a JAR file containing compiled classes">
+        <mkdir dir="${build.jar.dir}" />
+        <!-- Copy configuration files, web scripts, etc. directly into the JAR so they appear on the 
+        classpath. -->
+
+        <!-- Copy Java class files -->
+        <copy todir="${build.jar.dir}" includeEmptyDirs="false">
+            <fileset dir="${build.compile.dir}" includes="**/*.class">
+            </fileset>
+         </copy>
+          <copy todir="${build.jar.dir}" includeEmptyDirs="false">
+            <fileset dir="${res.dir}" includes="${build.res.includes}" excludes="${build.res.excludes}">
+            </fileset>
+         </copy>
+         
+         <native2ascii encoding="UTF-8" src="${res.dir}" dest="${build.jar.dir}" includes="**/*.native" ext=".properties"/>
+         
+
+
+         <jar destfile="${lib.dir}/${jar.name}">
+         <fileset dir="${build.jar.dir}" />
+      </jar>
+
+    </target>
+   
+    
+    <!--
+        Assemble the configuration and resource files in an AMP file structure. The files
+        module.properties and file-mapping.properties must be present in the root of the 
+        project.
+        
+        This creates a structure which can be deployed into an exising share.war file using the 
+        Alfresco Module Management Tool (MMT). See http://wiki.alfresco.com/wiki/AMP_Files.
+        
+        This mechanism is compatible with all versions of Alfresco Share and can therefore be 
+        used as an alternative to the JAR extension mechanism introduced in version 3.3.
+        
+        Note that this mechanism will place files directly into the webapp structure when the 
+        AMP is deployed, rather than the extension mechanisms used by the JAR and ZIP files that
+        ensure files are placed outside the webapp for safety during upgrades, etc.
+        
+        In this case this should be acceptable since the MMT modifies the WAR file itself 
+        rather than just the exploded files, and AMPs can always be re-applied if needed.
+        
+        In version 3.3 and above the JAR file mechanism is recommended as an alternative for all
+        non-complex extensions.
+    -->
+    <target name="build-amp" description="Assemble the configuration and resource files in an AMP file structure">
+      
+      <!-- Copy properties files -->
+        <copy todir="${build.amp.dir}" file="${amp.file.properties}" failonerror="true" />
+        <copy todir="${build.amp.dir}" file="${amp.file.mappings}" failonerror="true" />
+      
+      <!-- Copy config files -->
+        <mkdir dir="${build.amp.dir}/config" />
+        <copy todir="${build.amp.dir}/config">
+            <fileset dir="${config.dir}" includes="${config.includes}" excludes="${config.excludes}" />
+        </copy>
+
+
+        <!-- Copy Java class files -->
+        <mkdir dir="${build.amp.dir}/lib" />
+        <copy todir="${build.amp.dir}/lib" includeEmptyDirs="false">
+            <fileset dir="${lib.dir}" includes="**/*.jar">
+            </fileset>
+         </copy>
+        
+    </target>
+    
+    <!-- Build the AMP file -->
+    <target name="dist-amp" depends="clean, prepare, compile, build-jar, build-amp" description="Build an AMP file containing all customisations">
+        <zip destfile="${dist.dir}/${amp.name}">
+            <fileset dir="${build.amp.dir}" />
+        </zip>
+    </target>
+    
+
+ 
+   
+</project>

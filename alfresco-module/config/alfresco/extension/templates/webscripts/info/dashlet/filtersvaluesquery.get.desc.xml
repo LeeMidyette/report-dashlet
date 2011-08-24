@@ -1,0 +1,9 @@
+<webscript>
+  	<shortname>Query Filter Values for info dashlet</shortname>
+  	<description>Query Filter Values for info dashlet via GET</description>
+  	<format default="">extension</format>
+  	<url>/info/repository/{bytype}?q={query}</url>
+	 <authentication>admin</authentication>
+<!--	<authentication runas="admin">none</authentication> -->
+	<transaction>required</transaction>
+</webscript>

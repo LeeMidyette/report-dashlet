@@ -1,0 +1,47 @@
+/* Custom styles. Add new id and class styles.
+* Overriding defaults from each predefinied component.
+*/
+
+#datatable_wrapper{
+/*font-family: Lucida Grande,Lucida Sans,Arial,sans-serif;
+    font-size: 1.1em;*/
+}
+.ui-accordion{
+	width: auto !important;
+	height: auto !important;
+}
+#gRaphael{
+	padding: 0 !important;
+}
+.ui-accordion .ui-accordion-content{
+	padding: 0.3em 0.3em !important;
+  font-family: Arial,sans-serif;
+  font-size: 13px;
+	height: auto !important;
+}
+
+
+.manual-filters-toggle{cursor: pointer;}
+.container{	padding-top: 0.5em;}
+.half{	 width: 50%;}
+.border{	border: 1px solid #E4E4E4;}
+.relative {position:relative;}
+.block{display: block;}
+.double{width: 200%;}
+.clear{clear: both;}
+.initial-hidden{display: none;}
+.left{	float: left;}
+.text-center{	text-align: center;}
+
+#manual-filters-area textarea{width: 100% !important;}
+#group-by-container{float: left;}
+#ajax-loader-container{float: right; text-align: center; display: none;}
+#ajax-loader-container img{width: 24px; height: 24px;}
+
+#advanced-filters-option-container{	border-left: 1px solid #E4E4E4; padding-left: 1em; height: 100%;}
+#manual-filters-area{	min-height: 1em; font-family: "courier new","sans","monospace" ;}
+#flash-messages-container{ font-style: italic; padding-top: 0.5em; text-align: center; clear: both;  color:red; font-size: 14px;}
+#change-button-container-wrapper{ margin-left: 1em; float: right; text-align: center; }
+#gRaphael-container{overflow-x: hidden;}
+#downloadify-wrapper{	margin-left: 1em; float: right;}
+#downloadify{	height: 32px;}

@@ -1,0 +1,9 @@
+<webscript>
+  	<shortname>Stacks and Reports information repository for info dashlet</shortname>
+  	<description>Stacks and Reports information repository for info dashlet via GET</description>
+  	<format default="">extension</format>
+  	<url>/info/repository/report/stack</url>
+	 <authentication>admin</authentication>
+<!--	<authentication runas="admin">none</authentication> -->
+	<transaction>required</transaction>
+</webscript>
