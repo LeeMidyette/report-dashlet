@@ -730,7 +730,7 @@ public class ReportStacksWs extends AbstractWebScript {
 			 * se podría hacer en un futuro combinando las dos comprobaciones manuales.
 			 * 
 			 */ 
-			if(precissionMode && by.equals("creator") || by.equals("modifier")){
+			if(precissionMode && (by.equals("creator") || by.equals("modifier"))){
 				Hashtable<String,Integer> distinctValues=new Hashtable<String,Integer>();
 				while(it.hasNext()){
 					ResultSetRow row=it.next();
