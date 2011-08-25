@@ -401,7 +401,7 @@ function renderDateLinearGraph(data,r){
 		groupedDataX[i]=[0,1,2,3,4,5,6,7,8,9,10,11];
 	}
 
-var lines = r.g.linechart(30, 10, 580, 260, dataX, dataValue, {labelsX: axisx.concat([' ']) ,axisxstep: dataX.length/12, nostroke: false, axis: "0 0 1 1", symbol: "o", smooth: true, shade: false}).hoverColumn(function () {
+var lines = r.g.linechart(30, 40, 580, 260, dataX, dataValue, {labelsX: axisx.concat([' ']) ,axisxstep: dataX.length/12, nostroke: false, axis: "0 0 1 1", symbol: "o", smooth: true, shade: false}).hoverColumn(function () {
 	this.tags = r.set();
 	for (var i = 0, ii = this.y.length; i < ii; i++) {
 		this.tags.push(r.g.tag(this.x, this.y[i], this.values[i], 160, 10).insertBefore(this).attr([{fill: "#fff"}, {fill: this.symbols[i].attr("fill")}]));
@@ -420,25 +420,11 @@ function renderPieChart(data,r){
 	jQuery.each(data.gRaphaelResult.label, function (index){
 
 		label="%%.%% - "+data.gRaphaelResult.label[index];
-		var partLength=30;
-		labelPartNum=Math.ceil(label.length / partLength);
-		labelPartsArray = []
-
-		for(i=0; i< labelPartNum; i++){
-			if(i==labelPartNum-1){
-				labelPartsArray[i]=label.substring(i*partLength,label.length);
-			}else{
-				labelPartsArray[i]=label.substring(i*partLength,i*partLength+partLength);
-			}
-		}
-
-
-		label=labelPartsArray.join('\n');
 		customLabel[index]=label;
 
 	});
 
-	var pie = r.g.piechart(320, 160, 100, data.gRaphaelResult.data, {legend: customLabel, legendpos: "west", href: []});
+	var pie = r.g.piechart(320, 160, 100, data.gRaphaelResult.data, {legend: customLabel, legendpos: "south", href: []});
 	pie.hover(function () {
 		this.sector.stop();
 		this.sector.scale(1.1, 1.1, this.cx, this.cy);
@@ -447,8 +433,8 @@ function renderPieChart(data,r){
 			this.label[0].scale(1.5);
 			this.label[1].attr({"font-weight": 800});
 		}
-
-		this.flag = r.g.blob(this.sector.middle.x, this.sector.middle.y, this.value.valueOf() || "0");
+		var valueStr=(this.value.valueOf() || "0");
+		this.flag = r.g.blob(this.sector.middle.x, this.sector.middle.y, valueStr+' ('+this.label[1].node.textContent+')' );
 	}, function () {
 		this.sector.animate({scale: [1, 1,this.cx, this.cy]}, 500, "bounce");
 		if (this.label) {
@@ -481,8 +467,7 @@ function renderBarChart(data,r){
 }
 
 /***********************************************************************************************************************************/
-function fillDataGraph(data,graphTitle){
-	//TODO: modularizar, comprobar errores en data si existe o no...
+function fillDataGraph(data,graphTitle,width,height){
 
 
 	var childrenForRemove=jQuery.merge(jQuery("#gRaphael").children(),jQuery("#gRaphael2").children());
@@ -490,12 +475,24 @@ function fillDataGraph(data,graphTitle){
 
 	jQuery('#gRaphael-wrapper').children().css({left: 0});
 
-	var r = Raphael("gRaphael");
-	var r2 = Raphael("gRaphael2");
+	width = width || jQuery('#gRaphael').get(0).offsetWidth;
+	height= height|| 364; //gRaphael default height
+	
+	var r = Raphael("gRaphael",width,height);
+	var r2 = Raphael("gRaphael2",width,height);
 
 
 
 
+	/*Las llamadas a gRaphael modifican el array de datos cuando,
+	* por ejemplo, meten en la única agrupación "otros" agrupaciones
+	* independientes pero con poco valor. Es posible que según la
+	* altura del gráfico final tengamos que repintar para ajustarla.
+	* En ese caso el valor de data.gRaphaelResult.data no coincidiría,
+	* por lo que vamos a hacer una copia del objeto por si hubiera
+	* que repintar.
+	*/
+	var backupData = jQuery.extend(true, {}, data);
 
 	if(data.gRaphaelResult.data.length==0){
 		renderNotData(graphTitle,r);
@@ -516,6 +513,13 @@ function fillDataGraph(data,graphTitle){
 		}
 	}
 
+	var computedHeight=Math.max(r.canvas.getBBox().height,r2.canvas.getBBox().height);
+	//Si el alto de alguno de los gráficos supera al alto establecido,
+	//repintamos con la altura mayor y sumamos 15 por paddings y márgenes
+	//de por ahí
+	if(computedHeight > height){
+		fillDataGraph(backupData,graphTitle,width,computedHeight+15);
+	}
 
 }
 

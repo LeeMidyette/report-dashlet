@@ -20,7 +20,7 @@
  *  This product includes software used under license from Alfresco Software, Inc., 
  *  but it is not an Alfresco product and has not been tested, endorsed, or 
  *  approved by Alfresco Software, Inc. or any of its affiliates.
-*/
+ */
 
 package info.dashlet.repository.webscript;
 
@@ -73,28 +73,28 @@ public class ReportStacksWs extends AbstractWebScript {
 
 	/** La Constante logger. */
 	private static final Logger logger = Logger.getLogger(ReportStacksWs.class);
-	
+
 	/** La Constante LIMIT_TOP_TERM. */
 	private static final int LIMIT_TOP_TERM = 200;
 
 	/** El adm lucene indexer and searcher factory. */
 	private ADMLuceneIndexerAndSearcherFactory admLuceneIndexerAndSearcherFactory;
-	
+
 	/** El repository. */
 	private Repository repository;
-	
+
 	/** El search service. */
 	private SearchService searchService;
-	
+
 	/** El securized search service. */
 	private SearchService securizedSearchService;
-	
+
 	/** El file folder service. */
 	private FileFolderService fileFolderService;
-	
+
 	/** El node service. */
 	private NodeService nodeService;
-	
+
 	/** El namespace service. */
 	private NamespaceService namespaceService;
 
@@ -107,7 +107,7 @@ public class ReportStacksWs extends AbstractWebScript {
 	public ADMLuceneIndexerAndSearcherFactory getAdmLuceneIndexerAndSearcherFactory() {
 		return admLuceneIndexerAndSearcherFactory;
 	}
-	
+
 	/**
 	 * Establece el valor de adm lucene indexer and searcher factory.
 	 *
@@ -127,7 +127,7 @@ public class ReportStacksWs extends AbstractWebScript {
 	public Repository getRepository() {
 		return repository;
 	}
-	
+
 	/**
 	 * Establece el valor de repository.
 	 *
@@ -145,7 +145,7 @@ public class ReportStacksWs extends AbstractWebScript {
 	public SearchService getSecurizedSearchService() {
 		return securizedSearchService;
 	}
-	
+
 	/**
 	 * Establece el valor de securized search service.
 	 *
@@ -154,7 +154,7 @@ public class ReportStacksWs extends AbstractWebScript {
 	public void setSecurizedSearchService(SearchService securizedSearchService) {
 		this.securizedSearchService = securizedSearchService;
 	}
-	
+
 	/**
 	 * Obtiene namespace service.
 	 *
@@ -163,7 +163,7 @@ public class ReportStacksWs extends AbstractWebScript {
 	public NamespaceService getNamespaceService() {
 		return namespaceService;
 	}
-	
+
 	/**
 	 * Establece el valor de namespace service.
 	 *
@@ -172,7 +172,7 @@ public class ReportStacksWs extends AbstractWebScript {
 	public void setNamespaceService(NamespaceService namespaceService) {
 		this.namespaceService = namespaceService;
 	}
-	
+
 	/**
 	 * Obtiene node service.
 	 *
@@ -181,7 +181,7 @@ public class ReportStacksWs extends AbstractWebScript {
 	public NodeService getNodeService() {
 		return nodeService;
 	}
-	
+
 	/**
 	 * Establece el valor de node service.
 	 *
@@ -190,7 +190,7 @@ public class ReportStacksWs extends AbstractWebScript {
 	public void setNodeService(NodeService nodeService) {
 		this.nodeService = nodeService;
 	}
-	
+
 	/**
 	 * Obtiene file folder service.
 	 *
@@ -199,7 +199,7 @@ public class ReportStacksWs extends AbstractWebScript {
 	public FileFolderService getFileFolderService() {
 		return fileFolderService;
 	}
-	
+
 	/**
 	 * Establece el valor de file folder service.
 	 *
@@ -208,7 +208,7 @@ public class ReportStacksWs extends AbstractWebScript {
 	public void setFileFolderService(FileFolderService fileFolderService) {
 		this.fileFolderService = fileFolderService;
 	}
-	
+
 	/**
 	 * Obtiene search service.
 	 *
@@ -217,7 +217,7 @@ public class ReportStacksWs extends AbstractWebScript {
 	public SearchService getSearchService() {
 		return searchService;
 	}
-	
+
 	/**
 	 * Establece el valor de search service.
 	 *
@@ -229,7 +229,7 @@ public class ReportStacksWs extends AbstractWebScript {
 
 	/** La Constante searchBy. */
 	private final static Hashtable<String,String[]> searchBy=new Hashtable<String,String[]>();
-	
+
 	/** La Constante filterBy. */
 	private final static Hashtable<String,String> filterBy=new Hashtable<String,String>();
 
@@ -256,7 +256,7 @@ public class ReportStacksWs extends AbstractWebScript {
 		filterBy.put("path",     		"PATH:\"%s\"");
 
 	}
-	
+
 	/* (non-Javadoc)
 	 * @see org.springframework.extensions.webscripts.WebScript#execute(org.springframework.extensions.webscripts.WebScriptRequest, org.springframework.extensions.webscripts.WebScriptResponse)
 	 */
@@ -734,13 +734,17 @@ public class ReportStacksWs extends AbstractWebScript {
 				Hashtable<String,Integer> distinctValues=new Hashtable<String,Integer>();
 				while(it.hasNext()){
 					ResultSetRow row=it.next();
-					Serializable valorPropiedad=row.getValues().get(values[0].substring(1));
-					if(!valorPropiedad.equals(par.getFirst())){
-						Integer currentNumOccurrences=distinctValues.get(valorPropiedad);
-						int newNumOcurrences=(currentNumOccurrences!=null?currentNumOccurrences+1:1);
-						distinctValues.put(valorPropiedad.toString(), newNumOcurrences);
+					try{
+						Serializable valorPropiedad=row.getValues().get(values[0].substring(1));
+						if(!valorPropiedad.equals(par.getFirst())){
+							Integer currentNumOccurrences=distinctValues.get(valorPropiedad);
+							int newNumOcurrences=(currentNumOccurrences!=null?currentNumOccurrences+1:1);
+							distinctValues.put(valorPropiedad.toString(), newNumOcurrences);
+						}
+						logger.debug(String.format("Valor real de lo buscado por by en el result set para el termino: %s",par.getFirst()));
+					}catch(Exception e){
+						logger.warn("Problema consultando la propiedad de un nodo con precission mode (report dashlet)", e);
 					}
-					logger.debug(String.format("Valor real de lo buscado por by en el result set para el termino: %s",par.getFirst()));
 				}
 
 				if(distinctValues.keySet().size()>0){
@@ -777,6 +781,7 @@ public class ReportStacksWs extends AbstractWebScript {
 						boolean fullMatch=true;
 						for(Pair<String,String> exactMatchFilterComponent:exactMatchFilter){
 
+							try{
 							String propertyKey=searchBy.get(exactMatchFilterComponent.getFirst())[0];
 
 							if(exactMatchFilterComponent.getSecond().equals(row.getValues().get(propertyKey.substring(1)))){
@@ -784,6 +789,10 @@ public class ReportStacksWs extends AbstractWebScript {
 							}else{
 								fullMatch=fullMatch && false;
 								break;
+							}
+							}catch(Exception e){
+								fullMatch=false;
+								logger.warn("Problema consultando la propiedad de un nodo con el filtrado manual por match (report dashlet)", e);
 							}
 						}
 						if(fullMatch){
@@ -862,7 +871,7 @@ public class ReportStacksWs extends AbstractWebScript {
 		String prefixLocal[] = QName.splitPrefixedQName(myQNameResolved.toPrefixString());
 		return prefixLocal[0]+":"+qname.getLocalName();
 	}
-	
+
 	/**
 	 * Nos ayuda a renderizar los errores usando un ftl personalizado como en el DeclaredWebscript cuando se especifica redirect=true.
 	 * 

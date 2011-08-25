@@ -123,7 +123,8 @@
 						 <div id="advanced-filters-option-container" class="clear initial-hidden"  >
 							<div id="manual-filters-container">
 									<p><i>${msg("label.advancedOptionManualFilter")}:</i></p><br/>
-								  <p id="manual-filters-area" > AND -TYPE:"cm:systemfolder"  AND -TYPE:"cm:folder"  AND -TYPE:"cm:thumbnail" AND -TYPE:"cm:category"</p>
+								  <p id="manual-filters-area" > AND TYPE:"cm:content" </p>
+								  <p><i>${msg("label.advancedOptionManualFilterHelp")}</i></p>
 							</div>
 							<div id="check-precission-mode-container"><br/><input type="checkbox" name="check-precission-mode" id="check-precission-mode"/> <b>${msg("label.precissionMode")}</b> <br/>
 								<i>${msg("label.precissionModeHelp")}</i>

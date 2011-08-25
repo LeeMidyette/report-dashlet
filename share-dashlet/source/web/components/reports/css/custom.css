@@ -12,7 +12,13 @@
 }
 #gRaphael{
 	padding: 0 !important;
+	overflow: hidden;
 }
+#gRaphael2{
+	padding: 0 !important;
+	overflow: hidden;
+}
+
 .ui-accordion .ui-accordion-content{
 	padding: 0.3em 0.3em !important;
   font-family: Arial,sans-serif;
@@ -39,7 +45,7 @@
 #ajax-loader-container img{width: 24px; height: 24px;}
 
 #advanced-filters-option-container{	border-left: 1px solid #E4E4E4; padding-left: 1em; height: 100%;}
-#manual-filters-area{	min-height: 1em; font-family: "courier new","sans","monospace" ;}
+#manual-filters-area{	min-height: 1em; font-family: "courier new","sans","monospace"; font-size: 1.2em;}
 #flash-messages-container{ font-style: italic; padding-top: 0.5em; text-align: center; clear: both;  color:red; font-size: 14px;}
 #change-button-container-wrapper{ margin-left: 1em; float: right; text-align: center; }
 #gRaphael-container{overflow-x: hidden;}

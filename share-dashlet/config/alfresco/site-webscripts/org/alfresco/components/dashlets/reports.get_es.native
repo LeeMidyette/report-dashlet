@@ -28,6 +28,7 @@ label.filters=Filtros
 label.noFilters=Sin Filtros
 label.advancedOptions=Opciones avanzadas de filtrado
 label.advancedOptionManualFilter=A la consulta lucene automáticamente generada con los filtros, se le anexará lo siguiente (click para editar)
+label.advancedOptionManualFilterHelp=Ejemplos: <br/><pre>AND +TYPE:"cm:content"</pre> incluirá solo nodos de contenido (y subtipos), o bien <pre>AND -TYPE:"cm:systemfolder"</pre><pre>AND -TYPE:"cm:folder"</pre><pre>AND -TYPE:"cm:thumbnail"</pre><pre>AND -TYPE:"cm:category"</pre> para excluir esos tipos concretos.
 label.precissionMode=Modo precisión
 label.precissionModeHelp=Al agrupar por creador o modificador tiene en cuenta los distintos nombres de usuario que pueden estar tokenizados. Puede tardar mucho en función del número de documentos
 label.downloadGraphic=Descargar Gráfico

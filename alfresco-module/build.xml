@@ -32,7 +32,7 @@
     <property name="build.res.includes" value="**/*.*" />
     <property name="build.res.excludes" value="**/*.native" />
     <property name="yuicompress.warn" value="false" />
-    <property name="javac.debug" value="off" />
+    <property name="javac.debug" value="true" />
 
 
    
@@ -89,6 +89,7 @@
    <target name="prepare" description="Create initial build structures">
        <mkdir dir="${build.dir}" />
       <mkdir dir="${dist.dir}" />
+      <mkdir dir="${lib.dir}" />
    </target>
     
     
