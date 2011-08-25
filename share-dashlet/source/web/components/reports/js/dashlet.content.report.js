@@ -476,7 +476,7 @@ function fillDataGraph(data,graphTitle,width,height){
 	jQuery('#gRaphael-wrapper').children().css({left: 0});
 
 	width = width || jQuery('#gRaphael').get(0).offsetWidth;
-	height= height|| 364; //gRaphael default height
+	height= height|| 342; //gRaphael default height
 	
 	var r = Raphael("gRaphael",width,height);
 	var r2 = Raphael("gRaphael2",width,height);
