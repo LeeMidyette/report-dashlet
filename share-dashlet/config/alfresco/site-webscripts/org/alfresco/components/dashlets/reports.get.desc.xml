@@ -1,6 +1,6 @@
 <webscript>
-   <shortname>Informe de contenido del repositorio</shortname>
-   <description>Informe de contenido del repositorio</description>
+   <shortname>Content Report</shortname>
+   <description>Reports from repository content</description>
    <family>dashlet</family>
    <url>/components/dashlets/reports</url>
 </webscript>
