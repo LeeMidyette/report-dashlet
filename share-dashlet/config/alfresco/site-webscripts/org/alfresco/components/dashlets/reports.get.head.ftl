@@ -34,7 +34,7 @@
 <@link rel="stylesheet" type="text/css" href="${page.url.context}/res/components/reports/css/custom.css" />
 
 <@script type="text/javascript" src="${page.url.context}/res/components/reports/js/jquery-1.6.2.js"></@script>
-<@script type="text/javascript" src="${page.url.context}/res/components/reports/js/jqueryjson/jquery.json-2.2.js"></@script>
+<@script type="text/javascript" src="${page.url.context}/res/components/reports/js/jqueryjson/jquery-json-2.2.js"></@script>
 <@script type="text/javascript" src="${page.url.context}/res/components/reports/js/jqueryui/jquery-ui-1.8.14.custom.js"></@script>
 <@script type="text/javascript" src="${page.url.context}/res/components/reports/js/jqueryui/i18n/jquery.ui.datepicker-es.js"></@script>  
 <@script type="text/javascript" src="${page.url.context}/res/components/reports/js/datarangepicker/daterangepicker.jQuery.js"></@script>
