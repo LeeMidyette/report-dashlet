@@ -44,6 +44,7 @@
 				<option value="modified">${msg("label.modificationDate")}</option>
 				<option value="modifier">${msg("label.modificator")}</option>
 				<option value="type">${msg("label.typeModel")}</option>
+				<option value="size">${msg("label.size")}</option>
 			</select></label>
 			<div id="ajax-loader-container" >
 					<img  src="${page.url.context}/res/components/reports/images/ajax_load_trans.gif" />
@@ -104,6 +105,11 @@
 			<div id="path-filter" class="initial-hidden">
 				<label><h4>${msg("label.path")}:</h4><input id="path-filter-value" type="text" /> </label>
 				<span class="yui-button yui-link-button"><span class="first-child"> <a  id='add-path-filter-button' class="add-filter-button" href="#">${msg("label.add")}</a> </span></span>
+			</div>
+
+			<div id="size-filter" class="initial-hidden">
+				<label><h4>${msg("label.size")}:</h4><input id="size-filter-value" type="text" /> </label>
+				<span class="yui-button yui-link-button"><span class="first-child"> <a  id='add-size-filter-button' class="add-filter-button" href="#">${msg("label.add")}</a> </span></span>
 			</div>
 
 		</div>

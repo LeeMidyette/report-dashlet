@@ -25,6 +25,7 @@
 package info.dashlet.repository.webscript;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,6 +36,7 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import org.alfresco.repo.model.Repository;
 import org.alfresco.repo.search.impl.lucene.ADMLuceneIndexerAndSearcherFactory;
@@ -241,6 +243,7 @@ public class ReportStacksWs extends AbstractWebScript {
 		searchBy.put("modifier", new String [] {"@{http://www.alfresco.org/model/content/1.0}modifier","@cm\\:modifier:\"%s\""});
 		searchBy.put("aspect",   new String [] {"ASPECT","EXACTASPECT:\"%s\""});
 		searchBy.put("type",     new String [] {"TYPE","EXACTTYPE:\"%s\""});
+		searchBy.put("size", new String [] {"@{http://www.alfresco.org/model/content/1.0}content.size","@\\{http\\://www.alfresco.org/model/content/1.0\\}content.size:%s"});
 
 
 
@@ -254,6 +257,7 @@ public class ReportStacksWs extends AbstractWebScript {
 		filterBy.put("aspect_and_subaspects",   "ASPECT:\"%s\"");
 		filterBy.put("type_and_subtypes",     "TYPE:\"%s\"");
 		filterBy.put("path",     		"PATH:\"%s\"");
+		filterBy.put("size", 		"@\\{http\\://www.alfresco.org/model/content/1.0\\}content.size:%s");
 
 	}
 
@@ -609,6 +613,34 @@ public class ReportStacksWs extends AbstractWebScript {
 
 
 		}
+		if(key.equals("size")){
+			//TODO: adecuar a una regex
+			String tmp=valor.trim().toUpperCase();
+			
+			String preffix="";
+			String suffix="";
+			if(tmp.startsWith("[") || tmp.startsWith("{")){
+				preffix=tmp.substring(0,1);
+				tmp=tmp.substring(1);
+			}
+			if(tmp.endsWith("]") || tmp.endsWith("}")){
+				suffix=tmp.substring(tmp.length()-1, tmp.length());
+				tmp=tmp.substring(0, tmp.length()-1);
+			}
+			
+			String [] numbers=tmp.split("-");
+			if(numbers.length > 1){
+				long min=translateToBytes(numbers[0]);
+				long max=translateToBytes(numbers[1]);
+				
+				tmp=preffix+min+" TO "+max+suffix;
+			}else{
+				tmp=""+translateToBytes(tmp);
+			}
+			
+			
+			valor=tmp;
+		}
 		luceneFilter+=" AND "+"+"+String.format(filterBy.get(key),valor);
 		return luceneFilter;
 	}
@@ -626,8 +658,91 @@ public class ReportStacksWs extends AbstractWebScript {
 		LuceneSearcher searcher=admLuceneIndexerAndSearcherFactory.getSearcher(rootNodeRef.getStoreRef(), true);
 
 		List<Pair<String,Integer>> listaGlobalTerminos=searcher.getTopTerms(values[0], LIMIT_TOP_TERM);
+		
+		if(key.equals("size")){
+			listaGlobalTerminos=groupSizesByConf(listaGlobalTerminos);
+		}
 
 		return listaGlobalTerminos;
+	}
+
+	private List<Pair<String, Integer>> groupSizesByConf(List<Pair<String, Integer>> listaGlobalTerminos) {
+		
+		ArrayList<Pair<Long, Integer>> translatedListaGlobalterminos=new ArrayList<Pair<Long, Integer>>();
+		
+		for(Pair<String,Integer> pair:listaGlobalTerminos){
+			Long byteSizeGroup=org.alfresco.repo.search.impl.lucene.analysis.NumericEncoder.decodeLong(pair.getFirst());
+			Pair<Long,Integer> translatedPair=new Pair<Long,Integer>(byteSizeGroup,pair.getSecond());
+			translatedListaGlobalterminos.add(translatedPair);
+		}
+		ClassLoader cl = this.getClass().getClassLoader();
+		InputStream is = cl.getResourceAsStream("info/dashlet/repository/sizegroups.properties");
+		
+		Properties props = new Properties();
+		try {
+			props.load(is);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		String rangesStr=props.getProperty("ranges");
+		String [] groups=rangesStr.split(",");
+		
+		ArrayList<Pair<String, Integer>> formattedListaGlobalterminos=new ArrayList<Pair<String, Integer>>();
+		
+		for(String groupSize: groups){
+			String []groupSizeSplitted=groupSize.split("-");
+			long min=translateToBytes(groupSizeSplitted[0]);
+			long max=translateToBytes(groupSizeSplitted[1]);
+			
+			Pair<String,Integer> pair=new Pair<String, Integer>(groupSize, 0);
+			ArrayList<Pair<Long,Integer>> toRemove=new ArrayList<Pair<Long,Integer>>();
+			for(Pair<Long,Integer> translatedPair:translatedListaGlobalterminos){
+				long groupValue=translatedPair.getFirst();
+				if(groupValue>=min && groupValue<max){
+					pair.setSecond(pair.getSecond()+translatedPair.getSecond());
+					toRemove.add(translatedPair);
+				}
+			
+			}
+			logger.debug("Numero de doc para el termino:"+pair.getFirst()+" "+pair.getSecond());
+			formattedListaGlobalterminos.add(pair);
+			translatedListaGlobalterminos.removeAll(toRemove);
+		}
+		
+
+		return formattedListaGlobalterminos;
+	}
+
+	private long translateToBytes(String strSize) {
+		long bytes=0;
+		
+		strSize=strSize.trim().toUpperCase();
+
+		if(strSize.endsWith("MAX")){
+			return Long.MAX_VALUE;
+		}
+		if(strSize.endsWith("MIN")){
+			return Long.MIN_VALUE;
+		}
+
+		int endIndex=strSize.length();
+		if(strSize.endsWith("M") ||strSize.endsWith("K") || strSize.endsWith("G")){
+			endIndex=strSize.length()-1;
+		}
+		bytes=Long.parseLong(strSize.substring(0, endIndex));
+		
+		if(strSize.endsWith("K")){
+			bytes=bytes*1024;
+		}
+		else if(strSize.endsWith("M")){
+			bytes=bytes*1024*1024;
+		}
+		else if(strSize.endsWith("G")){
+			bytes=bytes*1024*1024*1024;
+		}
+
+		return bytes;
 	}
 
 	/**
@@ -697,9 +812,13 @@ public class ReportStacksWs extends AbstractWebScript {
 
 		List<Pair<String,Integer>> listaGlobalTerminos=getListaGlobalTerminos(by);
 
-		//Para cada término existente en el índice, recuperamos la cantidad real que arroja la consulta con los filtros pertinentes
+		//Para cada término existente en el índice, recuperamos la cantidad real que arroja la consulta con los filtros pertinentes.
+		//En el caso de las agrupaciones por tamaño, los términos los hemos compuesto artificialmente agregando, por cada grupo de tamaño especificado
+		//en el properties, los grupos del índice que encajaban en los intervalos. Los valores artificiales distan mucho de las consultas reales,
+		//por lo que concretamente en este caso se podría omitir.
+		//
 		for(Pair<String,Integer> par:listaGlobalTerminos){
-			String query=String.format(values[1], par.getFirst())+" "+luceneFilter;
+			String query=String.format(values[1], formatValue(by,par.getFirst()))+" "+luceneFilter;
 
 			logger.debug(String.format("consulta ejecutada: %s",query));
 
@@ -809,6 +928,20 @@ public class ReportStacksWs extends AbstractWebScript {
 			}
 		}
 		return resultFiltered;
+	}
+
+	private String formatValue(String by, String value) {
+		if(by.equals("size")){
+			String []groupSizeSplitted=value.split("-");
+			long min=translateToBytes(groupSizeSplitted[0]);
+			long max=translateToBytes(groupSizeSplitted[1]);
+			if(min!=0){
+				min++;
+			}
+			return "["+min+" TO "+max+"]";
+		}
+		return value;
+		
 	}
 
 	/**

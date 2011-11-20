@@ -138,7 +138,8 @@ jQuery(document).ready(function() {
 
 
 		if(filterTypeValue=='mimetype' || filterTypeValue=='created' || filterTypeValue=='modified' || filterTypeValue=='modifier' || filterTypeValue=='creator'
-		|| filterTypeValue=='aspect_and_subaspects' || filterTypeValue == 'type_and_subtypes' || filterTypeValue=='exact_type' || filterTypeValue=='exact_aspect' ||filterTypeValue=='path'){
+		|| filterTypeValue=='aspect_and_subaspects' || filterTypeValue == 'type_and_subtypes' || filterTypeValue=='exact_type' || filterTypeValue=='exact_aspect' ||filterTypeValue=='path'
+		|| filterTypeValue=='size'){
 
 			var filterTypePanel=jQuery('#'+filterTypeValue+'-filter',filterPanel);
 			jQuery('input',filterTypePanel).val('');
@@ -587,6 +588,9 @@ function showFlashMessage(text, timeout){
 		if(byTypeValue!='aspect'){
 			optionsForFilter+='<option value="exact_aspect">'+$msg('label.exactAspect')+'</option>';
 			optionsForFilter+='<option value="aspect_and_subaspects">'+$msg('label.aspectAndSubaspects')+'</option>';
+		}
+		if(byTypeValue!='size'){
+			optionsForFilter+='<option value="size">'+$msg('label.size')+'</option>';
 		}
 
 		optionsForFilter+='<option value="path">'+$msg('label.repositoryPath')+'</option>';

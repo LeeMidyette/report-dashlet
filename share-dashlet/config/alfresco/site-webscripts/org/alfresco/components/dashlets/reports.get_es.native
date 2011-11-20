@@ -36,6 +36,7 @@ label.changeGraphic=Cambiar Gráfico
 label.add=Añadir
 label.others=Otros
 label.dataTable=Tabla de Datos
+label.size=Tamaño
 
 dataTable.processing=Procesando
 dataTable.showMENUEntries=Mostrar _MENU_ entradas
