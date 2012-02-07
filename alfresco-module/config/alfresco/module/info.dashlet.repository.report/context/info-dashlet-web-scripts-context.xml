@@ -6,13 +6,11 @@
 		class="info.dashlet.repository.webscript.ReportStacksWs"
 		parent="webscript">
 
-		<property name="admLuceneIndexerAndSearcherFactory" ref="admLuceneIndexerAndSearcherFactory" />
 		<property name="fileFolderService" ref="FileFolderService" />
 		<property name="namespaceService" ref="NamespaceService" />
 		<property name="nodeService" ref="NodeService" />
 		<property name="repository" ref="repositoryHelper" />
 		<property name="searchService" ref="searchService"/>
-		<property name="securizedSearchService" ref="SearchService"/>
 	</bean>
 
 	<bean id="webscript.info.dashlet.filtersvaluesquery.get" 

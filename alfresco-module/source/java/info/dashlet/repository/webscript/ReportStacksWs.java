@@ -1,7 +1,7 @@
 /*
  *  Content Reports Dashlet for Alfresco (http://www.dashlet.info)
  *  
- *  Copyright (C) 2011 Pedro Salido López <psalido@dashlet.info>
+ *  Copyright (C) 2011, 2012 Pedro Salido López <psalido@dashlet.info>
  *  
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,12 +24,19 @@
 
 package info.dashlet.repository.webscript;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.io.Serializable;
+import java.io.UnsupportedEncodingException;
+import java.text.MessageFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -38,8 +45,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import javax.servlet.http.HttpServletResponse;
+
+import org.alfresco.httpclient.HttpClientFactory;
+import org.alfresco.repo.management.subsystems.SwitchableApplicationContextFactory;
 import org.alfresco.repo.model.Repository;
 import org.alfresco.repo.search.impl.lucene.ADMLuceneIndexerAndSearcherFactory;
+import org.alfresco.repo.search.impl.lucene.LuceneQueryParserException;
 import org.alfresco.repo.search.impl.lucene.LuceneSearcher;
 import org.alfresco.service.cmr.model.FileFolderService;
 import org.alfresco.service.cmr.model.FileNotFoundException;
@@ -47,19 +59,35 @@ import org.alfresco.service.cmr.repository.ChildAssociationRef;
 import org.alfresco.service.cmr.repository.NodeRef;
 import org.alfresco.service.cmr.repository.NodeService;
 import org.alfresco.service.cmr.repository.StoreRef;
+import org.alfresco.service.cmr.search.LimitBy;
 import org.alfresco.service.cmr.search.ResultSet;
 import org.alfresco.service.cmr.search.ResultSetRow;
+import org.alfresco.service.cmr.search.SearchParameters;
 import org.alfresco.service.cmr.search.SearchService;
 import org.alfresco.service.namespace.NamespaceService;
 import org.alfresco.service.namespace.QName;
 import org.alfresco.util.ISO9075;
 import org.alfresco.util.Pair;
+import org.apache.commons.codec.net.URLCodec;
+import org.apache.commons.httpclient.Header;
+import org.apache.commons.httpclient.HttpClient;
+import org.apache.commons.httpclient.HttpException;
+import org.apache.commons.httpclient.HttpStatus;
+import org.apache.commons.httpclient.URI;
+import org.apache.commons.httpclient.UsernamePasswordCredentials;
+import org.apache.commons.httpclient.auth.AuthScope;
+import org.apache.commons.httpclient.methods.PostMethod;
+import org.apache.commons.httpclient.params.HttpClientParams;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.lucene.queryParser.ParseException;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.json.JSONTokener;
+import org.springframework.beans.BeansException;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 import org.springframework.extensions.webscripts.AbstractWebScript;
 import org.springframework.extensions.webscripts.Cache;
 import org.springframework.extensions.webscripts.Status;
@@ -67,11 +95,13 @@ import org.springframework.extensions.webscripts.WebScriptException;
 import org.springframework.extensions.webscripts.WebScriptRequest;
 import org.springframework.extensions.webscripts.WebScriptResponse;
 
+import com.ibm.icu.util.Calendar;
+
 
 /**
  * Class ReportStacksWs.
  */
-public class ReportStacksWs extends AbstractWebScript {
+public class ReportStacksWs extends AbstractWebScript implements ApplicationContextAware {
 
 	/** La Constante logger. */
 	private static final Logger logger = Logger.getLogger(ReportStacksWs.class);
@@ -88,9 +118,6 @@ public class ReportStacksWs extends AbstractWebScript {
 	/** El search service. */
 	private SearchService searchService;
 
-	/** El securized search service. */
-	private SearchService securizedSearchService;
-
 	/** El file folder service. */
 	private FileFolderService fileFolderService;
 
@@ -100,25 +127,14 @@ public class ReportStacksWs extends AbstractWebScript {
 	/** El namespace service. */
 	private NamespaceService namespaceService;
 
+	/** Indica initialization completed. */
+	private boolean initializationCompleted=false;
 
-	/**
-	 * Obtiene adm lucene indexer and searcher factory.
-	 *
-	 * @return el adm lucene indexer and searcher factory
-	 */
-	public ADMLuceneIndexerAndSearcherFactory getAdmLuceneIndexerAndSearcherFactory() {
-		return admLuceneIndexerAndSearcherFactory;
-	}
+	/** The application context. */
+	private static ApplicationContext applicationContext;
 
-	/**
-	 * Establece el valor de adm lucene indexer and searcher factory.
-	 *
-	 * @param admLuceneIndexerAndSearcherFactory el nuevo adm lucene indexer and searcher factory
-	 */
-	public void setAdmLuceneIndexerAndSearcherFactory(
-			ADMLuceneIndexerAndSearcherFactory admLuceneIndexerAndSearcherFactory) {
-		this.admLuceneIndexerAndSearcherFactory = admLuceneIndexerAndSearcherFactory;
-	}
+
+
 
 
 	/**
@@ -137,24 +153,6 @@ public class ReportStacksWs extends AbstractWebScript {
 	 */
 	public void setRepository(Repository repository) {
 		this.repository = repository;
-	}
-
-	/**
-	 * Obtiene securized search service.
-	 *
-	 * @return el securized search service
-	 */
-	public SearchService getSecurizedSearchService() {
-		return securizedSearchService;
-	}
-
-	/**
-	 * Establece el valor de securized search service.
-	 *
-	 * @param securizedSearchService el nuevo securized search service
-	 */
-	public void setSecurizedSearchService(SearchService securizedSearchService) {
-		this.securizedSearchService = securizedSearchService;
 	}
 
 	/**
@@ -235,15 +233,19 @@ public class ReportStacksWs extends AbstractWebScript {
 	/** La Constante filterBy. */
 	private final static Hashtable<String,String> filterBy=new Hashtable<String,String>();
 
-	static{	
-		searchBy.put("mimetype", new String [] {"@{http://www.alfresco.org/model/content/1.0}content.mimetype","@\\{http\\://www.alfresco.org/model/content/1.0\\}content.mimetype:\"%s\""});
-		searchBy.put("created",  new String [] {"@{http://www.alfresco.org/model/content/1.0}created","@cm\\:created:%s"});
-		searchBy.put("modified", new String [] {"@{http://www.alfresco.org/model/content/1.0}modified","@cm\\:modified:%s"});
-		searchBy.put("creator",  new String [] {"@{http://www.alfresco.org/model/content/1.0}creator","@cm\\:creator:\"%s\""});
-		searchBy.put("modifier", new String [] {"@{http://www.alfresco.org/model/content/1.0}modifier","@cm\\:modifier:\"%s\""});
-		searchBy.put("aspect",   new String [] {"ASPECT","EXACTASPECT:\"%s\""});
-		searchBy.put("type",     new String [] {"TYPE","EXACTTYPE:\"%s\""});
-		searchBy.put("size", new String [] {"@{http://www.alfresco.org/model/content/1.0}content.size","@\\{http\\://www.alfresco.org/model/content/1.0\\}content.size:%s"});
+	private static final Integer DEFAULT_OLDEST_YEAR = 1999;
+
+	static{
+
+		//{nombre del campo para consulta, filtro en consulta, nombre del campo para consulta solr} 
+		searchBy.put("mimetype", new String [] {"@{http://www.alfresco.org/model/content/1.0}content.mimetype","@\\{http\\://www.alfresco.org/model/content/1.0\\}content.mimetype:\"%s\"","@{http://www.alfresco.org/model/content/1.0}content.mimetype"});
+		searchBy.put("created",  new String [] {"@{http://www.alfresco.org/model/content/1.0}created","@cm\\:created:%s","@{http://www.alfresco.org/model/content/1.0}created"});
+		searchBy.put("modified", new String [] {"@{http://www.alfresco.org/model/content/1.0}modified","@cm\\:modified:%s","@{http://www.alfresco.org/model/content/1.0}modified"});
+		searchBy.put("creator",  new String [] {"@{http://www.alfresco.org/model/content/1.0}creator","@cm\\:creator:\"%s\"","@{http://www.alfresco.org/model/content/1.0}creator.__"});
+		searchBy.put("modifier", new String [] {"@{http://www.alfresco.org/model/content/1.0}modifier","@cm\\:modifier:\"%s\"","@{http://www.alfresco.org/model/content/1.0}modifier.__"});
+		searchBy.put("aspect",   new String [] {"ASPECT","EXACTASPECT:\"%s\"","ASPECT"});
+		searchBy.put("type",     new String [] {"TYPE","EXACTTYPE:\"%s\"","TYPE"});
+		searchBy.put("size", new String [] {"@{http://www.alfresco.org/model/content/1.0}content.size","@\\{http\\://www.alfresco.org/model/content/1.0\\}content.size:%s","@{http://www.alfresco.org/model/content/1.0}content.size"});
 
 
 
@@ -268,6 +270,9 @@ public class ReportStacksWs extends AbstractWebScript {
 	public void execute(WebScriptRequest req, WebScriptResponse res)
 			throws IOException {
 
+		if(!initializationCompleted)
+			init();
+
 		res.setContentEncoding("UTF-8");
 		try{
 			String by=req.getParameter("by");
@@ -276,6 +281,8 @@ public class ReportStacksWs extends AbstractWebScript {
 			}
 			logger.debug(String.format("Usando Parámetro by=%s", by));
 
+
+			ArrayList<String []> result=null;
 			String filterJsonString=req.getParameter("filter");
 
 			String manual_filter=req.getParameter("manual_filter");
@@ -288,7 +295,6 @@ public class ReportStacksWs extends AbstractWebScript {
 
 			String luceneFilter=filters.getFirst()+" "+manual_filter;
 			ArrayList<Pair<String, String>> manualFilter = filters.getSecond();
-			ArrayList<String []> result=null;
 			try{
 				result = search(by,luceneFilter, manualFilter,precissionMode);
 			}catch(Exception e){
@@ -305,120 +311,11 @@ public class ReportStacksWs extends AbstractWebScript {
 
 
 			JSONObject gRaphaelMonthYearResult=null;
-
 			/* Si estamos recuperando contenidos por created o modified, introducimos una nueva disposición de datos
 			 * para pintar la gráfica de puntos en gRaphael
 			 */
-			if((by.equals("created") || by.equals("modified")) && result.size()>0){
-
-
-				String [][] resultArray=result.toArray(new String [1][]);
-
-				/* Ordena los resultados de manera creciente según la fecha (año-mes-dia)*/
-				Arrays.sort(resultArray,new Comparator<String[]>(){
-					@Override
-					public int compare(String[] el1, String[] el2) {
-						return el1[0].compareTo(el2[0]);
-					}
-				});
-
-
-				HashSet<String> yearsSet=new HashSet<String>();
-
-
-				/* Buscamos en el array de resultados ordenados y obtenemos el conjunto de años de todas las fechas que tienen algún contenido*/
-				for(String [] component:resultArray){
-					String [] date=component[0].split("-");
-					yearsSet.add(date[0]);
-
-
-				}
-				/*Creamos la matriz "dispersa" datainfo, donde 
-				 * el primer índice son los años y el segundo índice son los meses.
-				 * El valor indicado por los indices irá acumulando para cada día del correspondiente año-mes.
-				 */
-				String currentYear="";
-				int yearIndex=0;
-				int[][] dataInfo = new int[yearsSet.size()][12];
-
-				ArrayList<String[]> totalizedResult=new ArrayList<String[]>(result.size());
-
-				totalizedResult.ensureCapacity(result.size());
-				totalizedResult.add(new String[0]);
-
-				String currentYearMonth="";
-				int indexYM=0;
-
-				for(String [] component:resultArray){
-					String [] date=component[0].split("-");
-					if(currentYear.equals("")){
-						currentYear=date[0];
-					}
-					if(!date[0].equals(currentYear) ){ currentYear=date[0]; yearIndex++;}
-
-					int mes=Integer.parseInt(date[1])-1;
-					int cantidad=Integer.parseInt(component[1]);
-					dataInfo[yearIndex][mes] +=cantidad;
-
-					/*	Aprovechamos para totalizar los documentos por año/mes en vez de por año/mes/dia para devolverlos
-					 *  y poder pintar la gráfica de líneas mostrando los documentos en el eje del tiempo y también
-					 *  los datos de la tabla*/
-					String dateYearMonth=currentYear+"-"+date[1];
-					if(currentYearMonth.equals("")){ currentYearMonth=dateYearMonth; indexYM=0;}
-
-					if(!currentYearMonth.equals(dateYearMonth)){
-						currentYearMonth=dateYearMonth;
-						indexYM++;
-						totalizedResult.add(new String[0]);
-					}
-					totalizedResult.set(indexYM,new String[]{dateYearMonth,new Integer(dataInfo[yearIndex][mes]).toString()});
-
-				}
-
-
-				result=totalizedResult;
-
-				/*En datainfo tenemos ahora la matriz que representa para todos los años y meses, el número de documentos*/
-				ArrayList<Integer> xYears = new ArrayList<Integer>();
-				ArrayList<Integer> yMonths = new ArrayList<Integer>();
-				ArrayList<Integer> data = new ArrayList<Integer>();
-
-				/* Creamos las etiquetas*/
-				ArrayList<String> xLabelArrayList=new ArrayList<String>();
-				for(String year:yearsSet){
-					xLabelArrayList.add(year);
-
-				}
-				String [] xLabel=xLabelArrayList.toArray(new String [1]);
-				Arrays.sort(xLabel);
-				//TODO: localizar, pero mejor en el cliente
-				String [] yLabel=new String [] {"Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"};
-
-				/* "Linearizamos" la matriz dataInfo a 3 arrays unidimensionales, con los valores de los índices y los datos representados*/ 
-				for(yearIndex=0;yearIndex<dataInfo.length;yearIndex++){
-					int [] monthData=dataInfo[yearIndex];
-					for(int monthIndex=0; monthIndex<monthData.length;monthIndex++){
-						xYears.add(yearIndex);
-						yMonths.add(monthIndex);
-						data.add(monthData[monthIndex]);
-					}
-
-				}
-
-				gRaphaelMonthYearResult=new JSONObject();
-				try {
-					gRaphaelMonthYearResult.put("data", data);
-					gRaphaelMonthYearResult.put("xYear", xYears);
-					gRaphaelMonthYearResult.put("yMonth", yMonths);
-					gRaphaelMonthYearResult.put("xLabel", xLabel);
-					gRaphaelMonthYearResult.put("yLabel", yLabel);
-
-				} catch (JSONException e) {
-					throw new WebScriptException(Status.STATUS_INTERNAL_SERVER_ERROR,"Error añadiendo datos al resultado JSON");
-				}
-
-
-
+			if((by.equals("created") || by.equals("modified")) ){
+				gRaphaelMonthYearResult=transformDateResultsToSparseGRaphaelFormat(result);
 
 			}
 
@@ -429,16 +326,12 @@ public class ReportStacksWs extends AbstractWebScript {
 			for(String[] component: result){
 				gRaphaelLabel.add(component[0]);
 				gRaphaelData.add(Integer.parseInt(component[1]));
-
-
 			}
 
 			JSONObject dataTableResult=new JSONObject();
 			JSONObject gRaphaelResult=new JSONObject();
 			JSONObject responseData = new JSONObject();
 
-
-			//JSONObject jsonObjectArray=new JSONObject();
 
 			try {
 				dataTableResult.put("aaData", result);
@@ -468,6 +361,7 @@ public class ReportStacksWs extends AbstractWebScript {
 			renderErrorResponse(req,res,wex);
 		}catch(Exception e){
 			WebScriptException wex = new  WebScriptException(Status.STATUS_INTERNAL_SERVER_ERROR,"Error indeterminado en la ejecución del webscript", e);
+			logger.error("Error ejecutando webscript "+ReportStacksWs.class.getName(),wex);
 			renderErrorResponse(req,res,wex);
 		}
 
@@ -616,7 +510,7 @@ public class ReportStacksWs extends AbstractWebScript {
 		if(key.equals("size")){
 			//TODO: adecuar a una regex
 			String tmp=valor.trim().toUpperCase();
-			
+
 			String preffix="";
 			String suffix="";
 			if(tmp.startsWith("[") || tmp.startsWith("{")){
@@ -627,18 +521,18 @@ public class ReportStacksWs extends AbstractWebScript {
 				suffix=tmp.substring(tmp.length()-1, tmp.length());
 				tmp=tmp.substring(0, tmp.length()-1);
 			}
-			
+
 			String [] numbers=tmp.split("-");
 			if(numbers.length > 1){
 				long min=translateToBytes(numbers[0]);
 				long max=translateToBytes(numbers[1]);
-				
+
 				tmp=preffix+min+" TO "+max+suffix;
 			}else{
 				tmp=""+translateToBytes(tmp);
 			}
-			
-			
+
+
 			valor=tmp;
 		}
 		luceneFilter+=" AND "+"+"+String.format(filterBy.get(key),valor);
@@ -655,21 +549,96 @@ public class ReportStacksWs extends AbstractWebScript {
 	private List<Pair<String, Integer>> getListaGlobalTerminos(String key) {
 		String [] values=searchBy.get(key);
 		NodeRef rootNodeRef=nodeService.getRootNode(StoreRef.STORE_REF_WORKSPACE_SPACESSTORE);
-		LuceneSearcher searcher=admLuceneIndexerAndSearcherFactory.getSearcher(rootNodeRef.getStoreRef(), true);
+		List<Pair<String,Integer>> listaGlobalTerminos=null;
+		if(key.equals("created") || key.equals("modified")){
 
-		List<Pair<String,Integer>> listaGlobalTerminos=searcher.getTopTerms(values[0], LIMIT_TOP_TERM);
-		
-		if(key.equals("size")){
-			listaGlobalTerminos=groupSizesByConf(listaGlobalTerminos);
+
+			Serializable oldestDate="";
+			Serializable newestDate="";
+			Serializable [] minMaxDate=getMinMaxRepositoryDocumentDate(key);
+			oldestDate=minMaxDate[0];
+			newestDate=minMaxDate[1];
+
+			Integer oldestYear=DEFAULT_OLDEST_YEAR;
+			Integer newestYear=GregorianCalendar.getInstance().get(Calendar.YEAR);
+
+			SimpleDateFormat simpleDateformat=new SimpleDateFormat("yyyy");
+			if(oldestDate instanceof java.util.Date && Integer.valueOf(simpleDateformat.format(oldestDate))!=null){
+				oldestYear=Integer.valueOf(simpleDateformat.format(oldestDate));
+			}
+			if(newestDate instanceof java.util.Date && Integer.valueOf(simpleDateformat.format(newestDate))!=null){
+				newestYear=Integer.valueOf(simpleDateformat.format(newestDate));
+			}
+
+			listaGlobalTerminos=new ArrayList<Pair<String,Integer>>();
+			for(int year=oldestYear; year <= newestYear;year++){
+				for(int month=1; month<=12;month++){
+					listaGlobalTerminos.add(new Pair<String,Integer>( Integer.toString(year) + "-"+ Integer.toString(month),1 ) );
+				}
+			}
+		}else{
+			if(admLuceneIndexerAndSearcherFactory!=null){//lucene config
+				LuceneSearcher searcher=admLuceneIndexerAndSearcherFactory.getSearcher(rootNodeRef.getStoreRef(), true);
+
+				listaGlobalTerminos=searcher.getTopTerms(values[0], LIMIT_TOP_TERM);
+			}else{//solr config
+				CustomSolrSearcher solrSearcher=CustomSolrSearcher.getInstance(); 
+				listaGlobalTerminos=solrSearcher.getTopTerms(values[2], LIMIT_TOP_TERM);
+			}
+			if(key.equals("size")){
+				listaGlobalTerminos=groupSizesByConf(listaGlobalTerminos);
+			}
+
 		}
 
 		return listaGlobalTerminos;
 	}
 
+	private Serializable[] getMinMaxRepositoryDocumentDate(String key) {
+		String filter=String.format(filterBy.get(key), "[MIN TO MAX]");
+
+		Serializable oldestDate="";
+		Serializable newestDate="";
+
+		SearchParameters sp = new SearchParameters();
+		sp.addStore(StoreRef.STORE_REF_WORKSPACE_SPACESSTORE);
+		sp.setLanguage(SearchService.LANGUAGE_LUCENE);
+
+		sp.setQuery("PATH:\"//.\" AND "+filter);
+		sp.addSort(searchBy.get(key)[0], true);
+		sp.setLimit(1);
+		sp.setLimitBy(LimitBy.FINAL_SIZE);
+
+		ResultSet result = searchService.query(sp);
+		List<NodeRef> nodeRefs = result.getNodeRefs();
+
+		if(nodeRefs.size()>0){
+			oldestDate=nodeService.getProperty(nodeRefs.get(0), QName.createQName(searchBy.get(key)[0].substring(1)));
+		}
+		result.close();
+
+		sp = new SearchParameters();
+		sp.addStore(StoreRef.STORE_REF_WORKSPACE_SPACESSTORE);
+		sp.setLanguage(SearchService.LANGUAGE_LUCENE);
+
+		sp.setQuery("PATH:\"//.\" AND "+filter);
+		sp.addSort(searchBy.get(key)[0], false);
+		sp.setLimit(1);
+		sp.setLimitBy(LimitBy.FINAL_SIZE);
+
+		result = searchService.query(sp);
+		nodeRefs = result.getNodeRefs();
+		if(nodeRefs.size()>0){
+			newestDate=nodeService.getProperty(nodeRefs.get(0), QName.createQName(searchBy.get(key)[0].substring(1)));
+		}
+		result.close();
+		return new Serializable[]{oldestDate,newestDate};
+	}
+
 	private List<Pair<String, Integer>> groupSizesByConf(List<Pair<String, Integer>> listaGlobalTerminos) {
-		
+
 		ArrayList<Pair<Long, Integer>> translatedListaGlobalterminos=new ArrayList<Pair<Long, Integer>>();
-		
+
 		for(Pair<String,Integer> pair:listaGlobalTerminos){
 			Long byteSizeGroup=org.alfresco.repo.search.impl.lucene.analysis.NumericEncoder.decodeLong(pair.getFirst());
 			Pair<Long,Integer> translatedPair=new Pair<Long,Integer>(byteSizeGroup,pair.getSecond());
@@ -677,24 +646,24 @@ public class ReportStacksWs extends AbstractWebScript {
 		}
 		ClassLoader cl = this.getClass().getClassLoader();
 		InputStream is = cl.getResourceAsStream("info/dashlet/repository/sizegroups.properties");
-		
+
 		Properties props = new Properties();
 		try {
 			props.load(is);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
+
 		String rangesStr=props.getProperty("ranges");
 		String [] groups=rangesStr.split(",");
-		
+
 		ArrayList<Pair<String, Integer>> formattedListaGlobalterminos=new ArrayList<Pair<String, Integer>>();
-		
+
 		for(String groupSize: groups){
 			String []groupSizeSplitted=groupSize.split("-");
 			long min=translateToBytes(groupSizeSplitted[0]);
 			long max=translateToBytes(groupSizeSplitted[1]);
-			
+
 			Pair<String,Integer> pair=new Pair<String, Integer>(groupSize, 0);
 			ArrayList<Pair<Long,Integer>> toRemove=new ArrayList<Pair<Long,Integer>>();
 			for(Pair<Long,Integer> translatedPair:translatedListaGlobalterminos){
@@ -703,20 +672,20 @@ public class ReportStacksWs extends AbstractWebScript {
 					pair.setSecond(pair.getSecond()+translatedPair.getSecond());
 					toRemove.add(translatedPair);
 				}
-			
+
 			}
 			logger.debug("Numero de doc para el termino:"+pair.getFirst()+" "+pair.getSecond());
 			formattedListaGlobalterminos.add(pair);
 			translatedListaGlobalterminos.removeAll(toRemove);
 		}
-		
+
 
 		return formattedListaGlobalterminos;
 	}
 
 	private long translateToBytes(String strSize) {
 		long bytes=0;
-		
+
 		strSize=strSize.trim().toUpperCase();
 
 		if(strSize.endsWith("MAX")){
@@ -731,7 +700,7 @@ public class ReportStacksWs extends AbstractWebScript {
 			endIndex=strSize.length()-1;
 		}
 		bytes=Long.parseLong(strSize.substring(0, endIndex));
-		
+
 		if(strSize.endsWith("K")){
 			bytes=bytes*1024;
 		}
@@ -812,17 +781,23 @@ public class ReportStacksWs extends AbstractWebScript {
 
 		List<Pair<String,Integer>> listaGlobalTerminos=getListaGlobalTerminos(by);
 
-		//Para cada término existente en el índice, recuperamos la cantidad real que arroja la consulta con los filtros pertinentes.
-		//En el caso de las agrupaciones por tamaño, los términos los hemos compuesto artificialmente agregando, por cada grupo de tamaño especificado
-		//en el properties, los grupos del índice que encajaban en los intervalos. Los valores artificiales distan mucho de las consultas reales,
-		//por lo que concretamente en este caso se podría omitir.
-		//
+		/* Para cada término existente en el índice, recuperamos la cantidad real que arroja la consulta con los filtros pertinentes.
+		 * En el caso de las agrupaciones por tamaño, los términos los hemos compuesto artificialmente agregando, por cada grupo de tamaño especificado
+		 * en el properties, los grupos del índice que encajaban en los intervalos. Los valores artificiales distan mucho de las consultas reales,
+		 * por lo que concretamente en este caso se podría omitir.
+		 */
+
 		for(Pair<String,Integer> par:listaGlobalTerminos){
 			String query=String.format(values[1], formatValue(by,par.getFirst()))+" "+luceneFilter;
 
 			logger.debug(String.format("consulta ejecutada: %s",query));
 
-			ResultSet resultSet = searchService.query(StoreRef.STORE_REF_WORKSPACE_SPACESSTORE, SearchService.LANGUAGE_LUCENE, query);
+			SearchParameters sp = new SearchParameters();
+			sp.addStore(StoreRef.STORE_REF_WORKSPACE_SPACESSTORE);
+			sp.setLanguage(SearchService.LANGUAGE_LUCENE);
+			sp.setQuery(query);
+
+			ResultSet resultSet = searchService.query(sp);
 			int cuenta=0;
 
 
@@ -830,7 +805,7 @@ public class ReportStacksWs extends AbstractWebScript {
 
 
 			boolean precissionModeApplied=false;
-			/*En el modo precissionMode intenta desglosar los términos por los que agrupamos cuya definición en el modelo
+			/* En el modo precissionMode intenta desglosar los términos por los que agrupamos cuya definición en el modelo
 			 * indica que son tokenizados.
 			 * Inicialmente los términos de los que disponemos son tokens, no los valores completos, por lo que
 			 * quizá el término agrupe varios valores que nos interesa desglosar. Por ejemplo, usuarios psalido y 
@@ -901,14 +876,14 @@ public class ReportStacksWs extends AbstractWebScript {
 						for(Pair<String,String> exactMatchFilterComponent:exactMatchFilter){
 
 							try{
-							String propertyKey=searchBy.get(exactMatchFilterComponent.getFirst())[0];
+								String propertyKey=searchBy.get(exactMatchFilterComponent.getFirst())[0];
 
-							if(exactMatchFilterComponent.getSecond().equals(row.getValues().get(propertyKey.substring(1)))){
-								fullMatch=fullMatch && true;
-							}else{
-								fullMatch=fullMatch && false;
-								break;
-							}
+								if(exactMatchFilterComponent.getSecond().equals(row.getValues().get(propertyKey.substring(1)))){
+									fullMatch=fullMatch && true;
+								}else{
+									fullMatch=fullMatch && false;
+									break;
+								}
 							}catch(Exception e){
 								fullMatch=false;
 								logger.warn("Problema consultando la propiedad de un nodo con el filtrado manual por match (report dashlet)", e);
@@ -941,7 +916,7 @@ public class ReportStacksWs extends AbstractWebScript {
 			return "["+min+" TO "+max+"]";
 		}
 		return value;
-		
+
 	}
 
 	/**
@@ -1103,5 +1078,244 @@ public class ReportStacksWs extends AbstractWebScript {
 		return(lucenePath+"//*");
 
 			}
+
+
+	/**
+	 * Legacy transform date results to sparse.
+	 *
+	 * @param result the result
+	 * @return the jSON object
+	 */
+	public JSONObject transformDateResultsToSparseGRaphaelFormat(ArrayList<String[]> result){
+
+
+		String [][] resultArray=result.toArray(new String [1][]);
+
+		/* Ordena los resultados de manera creciente según la fecha (año-mes-dia)*/
+		Arrays.sort(resultArray,new Comparator<String[]>(){
+			@Override
+			public int compare(String[] el1, String[] el2) {
+				return el1[0].compareTo(el2[0]);
+			}
+		});
+
+
+		HashSet<String> yearsSet=new HashSet<String>();
+
+		if(resultArray.length>0 && resultArray[0]!=null){
+			for(String [] component:resultArray){
+				String [] date=component[0].split("-");
+				yearsSet.add(date[0]);
+
+
+			}
+		}
+		/*Creamos la matriz "dispersa" datainfo, donde 
+		 * el primer índice son los años y el segundo índice son los meses.
+		 * El valor es la cuenta de documentos de ese año/mes
+		 * Aprovechamos para obtener el Set de años en los que algunos de sus meses tengan contenido.
+		 */
+		int yearIndex=0;
+		int[][] dataInfo = new int[yearsSet.size()][12];
+
+		String [] date=null;
+		if(resultArray.length>0 && resultArray[0]!=null){
+			date=resultArray[0][0].split("-");
+			String currentYear=date[0];
+			yearsSet.add(date[0]);
+
+
+
+			for(String [] component:resultArray){
+				date=component[0].split("-");
+				if(!date[0].equals(currentYear) ){ 
+					currentYear=date[0];
+					yearsSet.add(currentYear);
+					yearIndex++;
+				}
+
+				int mes=Integer.parseInt(date[1])-1;
+
+				dataInfo[yearIndex][mes] = Integer.parseInt(component[1]);
+
+			}
+		}
+
+
+		/*En datainfo tenemos ahora la matriz que representa para todos los años y meses, el número de documentos*/
+		ArrayList<Integer> xYears = new ArrayList<Integer>();
+		ArrayList<Integer> yMonths = new ArrayList<Integer>();
+		ArrayList<Integer> data = new ArrayList<Integer>();
+
+		/* Creamos las etiquetas*/
+		ArrayList<String> xLabelArrayList=new ArrayList<String>();
+		for(String year:yearsSet){
+			xLabelArrayList.add(year);
+
+		}
+		String [] xLabel=xLabelArrayList.toArray(new String [1]);
+		Arrays.sort(xLabel);
+		//TODO: localizar, pero mejor en el cliente
+		String [] yLabel=new String [] {"Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"};
+
+		/* "Linearizamos" la matriz dataInfo a 3 arrays unidimensionales, con los valores de los índices y los datos representados*/ 
+		for(yearIndex=0;yearIndex<dataInfo.length;yearIndex++){
+			int [] monthData=dataInfo[yearIndex];
+			for(int monthIndex=0; monthIndex<monthData.length;monthIndex++){
+				xYears.add(yearIndex);
+				yMonths.add(monthIndex);
+				data.add(monthData[monthIndex]);
+			}
+
+		}
+
+		JSONObject gRaphaelMonthYearResult = new JSONObject();
+		try {
+			gRaphaelMonthYearResult.put("data", data);
+			gRaphaelMonthYearResult.put("xYear", xYears);
+			gRaphaelMonthYearResult.put("yMonth", yMonths);
+			gRaphaelMonthYearResult.put("xLabel", xLabel);
+			gRaphaelMonthYearResult.put("yLabel", yLabel);
+
+		} catch (JSONException e) {
+			throw new WebScriptException(Status.STATUS_INTERNAL_SERVER_ERROR,"Error añadiendo datos al resultado JSON");
+		}
+
+		return  gRaphaelMonthYearResult;
+
+	}
+
+
+	@Override
+	public void setApplicationContext(ApplicationContext arg0)
+			throws BeansException {
+		applicationContext = arg0;
+
+	}
+
+	/**
+	 * Inicializa
+	 */
+	private void init() {
+		/*No nos sirve configurar esto como método init del bean de spring, ya cuando está configurado lucene, 
+		 * instancia el bean (e invoca a init) antes que de la inicialización del subsistema cosas del subsistema.
+		 * Como en el init del bean se llama beans del subsistema que aún no han sido inicializados, 
+		 * hace que falle la inicialización de alfresco.
+		 * */
+
+		//TODO, preparar también la inicialización para contexto de alfresco 3.4.X
+		SwitchableApplicationContextFactory sw=(SwitchableApplicationContextFactory) applicationContext.getBean("Search");
+		Object tmp=sw.getApplicationContext().getBean("search.admLuceneIndexerAndSearcherFactory");
+		if(tmp instanceof org.alfresco.repo.search.impl.lucene.ADMLuceneIndexerAndSearcherFactory ){
+			admLuceneIndexerAndSearcherFactory=(org.alfresco.repo.search.impl.lucene.ADMLuceneIndexerAndSearcherFactory)tmp;	
+		}
+
+		initializationCompleted=true;
+
+
+	}
+
+
+	/**
+	 *  Class CustomSolrSearcher.
+	 */
+	private static class CustomSolrSearcher{
+		private HttpClient httpClient;
+
+		private static CustomSolrSearcher customSolrSearcherInstance=null;
+		private CustomSolrSearcher(){
+			HttpClientFactory httpClientFactory=(HttpClientFactory) applicationContext.getBean("solrHttpClientFactory");
+
+			httpClient = httpClientFactory.getHttpClient();
+
+			httpClient = httpClientFactory.getHttpClient();
+			HttpClientParams params = httpClient.getParams();
+
+			params.setBooleanParameter(HttpClientParams.PREEMPTIVE_AUTHENTICATION, true);
+
+			httpClient.getState().setCredentials(new AuthScope(AuthScope.ANY_HOST, AuthScope.ANY_PORT), new UsernamePasswordCredentials("admin", "admin"));
+
+		}
+
+		public static CustomSolrSearcher getInstance(){
+			if(customSolrSearcherInstance==null){
+				customSolrSearcherInstance=new CustomSolrSearcher();
+			}
+			//return customSolrSearcherInstance;
+			return new CustomSolrSearcher();
+		}
+
+		public List<Pair<String, Integer>> getTopTerms(String field,	int limitTopTerm) {
+			String url="/solr/alfresco/select/?q={0}&start=0&rows=0&indent=on&facet=on&facet.field={1}&facet.limit={2}";
+			URLCodec encoder = new URLCodec();
+			ArrayList<Pair<String, Integer>> termList=new  ArrayList<Pair<String, Integer>>();
+			try{
+				Object [] obj={"*:*",encoder.encode(field, "UTF-8"),limitTopTerm};
+
+				PostMethod post = new PostMethod(MessageFormat.format(url.toString(),obj));
+				System.err.println(post.getURI());
+				httpClient.executeMethod(post);
+
+				if(post.getStatusCode() == HttpStatus.SC_MOVED_PERMANENTLY || post.getStatusCode() == HttpStatus.SC_MOVED_TEMPORARILY)
+				{
+					Header locationHeader = post.getResponseHeader("location");
+					if (locationHeader != null)
+					{
+						String redirectLocation = locationHeader.getValue();
+						post.setURI(new URI(redirectLocation, true));
+						httpClient.executeMethod(post);
+					}
+				}
+
+				if (post.getStatusCode() != HttpServletResponse.SC_OK)
+				{
+					throw new LuceneQueryParserException("Request failed " + post.getStatusCode() + " " + post.getURI().toString());
+				}
+				//System.err.println("respuesta solr:"+post.getResponseBodyAsString());
+
+				Reader reader = new BufferedReader(new InputStreamReader(post.getResponseBodyAsStream()));
+
+				// TODO - replace with streaming-based solution e.g. SimpleJSON ContentHandler
+				JSONObject json = new JSONObject(new JSONTokener(reader));
+
+				//System.err.println("json:"+json.toString());
+
+
+				JSONObject facetCounts=json.getJSONObject("facet_counts");
+				if(facetCounts!=null){
+					JSONObject facetFields=facetCounts.getJSONObject("facet_fields");
+					if(facetFields!=null){
+
+						System.err.println(facetFields);
+						JSONArray jsonArrayFacetFields = facetFields.getJSONArray(field);
+						for(int i=0; i< jsonArrayFacetFields.length();i+=2){
+							String term=(String)jsonArrayFacetFields.get(i);
+							int count=(Integer)jsonArrayFacetFields.get(i+1);
+							termList.add(new Pair<String,Integer>(term,count));
+
+						}
+
+					}
+				}
+
+
+			} catch(UnsupportedEncodingException e){
+				e.printStackTrace();
+			} catch (HttpException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
+
+			return termList;
+		}
+
+	}
 
 }
