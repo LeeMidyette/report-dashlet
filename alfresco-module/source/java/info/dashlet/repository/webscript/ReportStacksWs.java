@@ -608,6 +608,7 @@ public class ReportStacksWs extends AbstractWebScript implements ApplicationCont
 
 		sp.setQuery("PATH:\"//.\" AND "+filter);
 		sp.addSort(searchBy.get(key)[0], true);
+		//TODO: OJO!! En lucene 
 		sp.setLimit(1);
 		sp.setLimitBy(LimitBy.FINAL_SIZE);
 
