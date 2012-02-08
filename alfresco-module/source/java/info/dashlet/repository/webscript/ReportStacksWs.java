@@ -35,6 +35,7 @@ import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Comparator;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
@@ -88,6 +89,7 @@ import org.json.JSONTokener;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.extensions.surf.util.ISO8601DateFormat;
 import org.springframework.extensions.webscripts.AbstractWebScript;
 import org.springframework.extensions.webscripts.Cache;
 import org.springframework.extensions.webscripts.Status;
@@ -95,7 +97,7 @@ import org.springframework.extensions.webscripts.WebScriptException;
 import org.springframework.extensions.webscripts.WebScriptRequest;
 import org.springframework.extensions.webscripts.WebScriptResponse;
 
-import com.ibm.icu.util.Calendar;
+
 
 
 /**
@@ -573,7 +575,7 @@ public class ReportStacksWs extends AbstractWebScript implements ApplicationCont
 			listaGlobalTerminos=new ArrayList<Pair<String,Integer>>();
 			for(int year=oldestYear; year <= newestYear;year++){
 				for(int month=1; month<=12;month++){
-					listaGlobalTerminos.add(new Pair<String,Integer>( Integer.toString(year) + "-"+ Integer.toString(month),1 ) );
+					listaGlobalTerminos.add(new Pair<String,Integer>( Integer.toString(year) + "-"+ String.format("%02d", month),1 ) );
 				}
 			}
 		}else{
@@ -914,6 +916,19 @@ public class ReportStacksWs extends AbstractWebScript implements ApplicationCont
 				min++;
 			}
 			return "["+min+" TO "+max+"]";
+		}if(by.equals("created") || by.equals("modified")){
+			/*En la wiki (http://wiki.alfresco.com/wiki/Search) dice:
+			*The query parser expects the date in ISO 8601 datetime format "yyyy-MM-dd'T'HH:mm:ss.sssZ". Truncated forms of this date are also supported.
+			*Con el subsistema solr parece que esto es cierto, así que no haría falta convertir la fecha yyyy-mm, ya que este valor a la consulta es válido
+			*Con lucene esto no es cierto, por lo que para obtener los documentos de un mes dado, habría que hacer la consulta tomando el intervalo
+			*desde el comienzo del mes hasta el final. Con el subsistema solr esta solución también es válida.
+			*/
+			Calendar c=GregorianCalendar.getInstance();
+			//Suponemos que value es de la forma yyyy-mm (año-mes)!!
+			c.setTime(ISO8601DateFormat.parse(value+"-01T00:00:00.000+00:00"));
+			int lastDayOfCurrentMonth=c.getActualMaximum(Calendar.DAY_OF_MONTH);
+			return "["+value+"-01 TO "+value+"-"+String.format("%02d",lastDayOfCurrentMonth)+"]";
+			
 		}
 		return value;
 
