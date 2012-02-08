@@ -222,6 +222,7 @@ public class ReportFiltersValuesQueryWs extends AbstractWebScript{
 			res.getWriter().append(result.toString());
 		//Devuelve una lista de los usuarios del sistema (filtra por q)
 		}else if(byType.trim().equalsIgnoreCase("user")){
+			//TODO: reemplazar por la llamada getPeople(args...)
 			Set<NodeRef> allPeople= personService.getAllPeople();
 			ArrayList<String> filteredUserNames=new ArrayList<String>();
 
