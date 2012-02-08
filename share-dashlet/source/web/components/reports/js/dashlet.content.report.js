@@ -36,7 +36,7 @@ jQuery(document).ready(function() {
 	jQuery("#change-button").click(function(){
 
 
-		if(jQuery('#gRaphael').position().left > 0 ){
+		if(jQuery('#gRaphael').position().left >= 0 ){
 			left=-jQuery('#gRaphael-container').outerWidth();
 		}else{
 			left=0;
@@ -258,7 +258,7 @@ function fillData(data,success,jqXHR){
 							return graphTitle+'.svg';
 						},
 						data: function(){
-							if(jQuery('#gRaphael').position().left > 0 ){
+							if(jQuery('#gRaphael').position().left >= 0 ){
 								return jQuery('#gRaphael').html();
 							}else{
 								return jQuery('#gRaphael2').html();
