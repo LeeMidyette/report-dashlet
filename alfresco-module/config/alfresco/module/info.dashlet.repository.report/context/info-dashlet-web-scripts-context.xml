@@ -11,6 +11,7 @@
 		<property name="nodeService" ref="NodeService" />
 		<property name="repository" ref="repositoryHelper" />
 		<property name="searchService" ref="searchService"/>
+		<property name="descriptorService" ref="DescriptorService"/>
 	</bean>
 
 	<bean id="webscript.info.dashlet.filtersvaluesquery.get" 

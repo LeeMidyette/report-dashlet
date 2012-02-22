@@ -36,6 +36,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
@@ -65,6 +66,7 @@ import org.alfresco.service.cmr.search.ResultSet;
 import org.alfresco.service.cmr.search.ResultSetRow;
 import org.alfresco.service.cmr.search.SearchParameters;
 import org.alfresco.service.cmr.search.SearchService;
+import org.alfresco.service.descriptor.DescriptorService;
 import org.alfresco.service.namespace.NamespaceService;
 import org.alfresco.service.namespace.QName;
 import org.alfresco.util.ISO9075;
@@ -130,7 +132,11 @@ public class ReportStacksWs extends AbstractWebScript implements ApplicationCont
 	private NamespaceService namespaceService;
 
 	/** Indica initialization completed. */
-	private boolean initializationCompleted=false;
+	private boolean luceneSearchServiceInitializationCompleted=false;
+
+	/** The descriptor service. */
+	private DescriptorService descriptorService;
+
 
 	/** The application context. */
 	private static ApplicationContext applicationContext;
@@ -229,6 +235,25 @@ public class ReportStacksWs extends AbstractWebScript implements ApplicationCont
 		this.searchService = searchService;
 	}
 
+
+	/**
+	 * Gets the descriptor service.
+	 *
+	 * @return the descriptor service
+	 */
+	public DescriptorService getDescriptorService() {
+		return descriptorService;
+	}
+
+	/**
+	 * Sets the descriptor service.
+	 *
+	 * @param descriptorService the new descriptor service
+	 */
+	public void setDescriptorService(DescriptorService descriptorService) {
+		this.descriptorService = descriptorService;
+	}
+
 	/** La Constante searchBy. */
 	private final static Hashtable<String,String[]> searchBy=new Hashtable<String,String[]>();
 
@@ -272,7 +297,7 @@ public class ReportStacksWs extends AbstractWebScript implements ApplicationCont
 	public void execute(WebScriptRequest req, WebScriptResponse res)
 			throws IOException {
 
-		if(!initializationCompleted)
+		if(!luceneSearchServiceInitializationCompleted)
 			init();
 
 		res.setContentEncoding("UTF-8");
@@ -579,7 +604,7 @@ public class ReportStacksWs extends AbstractWebScript implements ApplicationCont
 				}
 			}
 		}else{
-			if(admLuceneIndexerAndSearcherFactory!=null){//lucene config
+			if(admLuceneIndexerAndSearcherFactory!=null){//if using lucene config
 				LuceneSearcher searcher=admLuceneIndexerAndSearcherFactory.getSearcher(rootNodeRef.getStoreRef(), true);
 
 				listaGlobalTerminos=searcher.getTopTerms(values[0], LIMIT_TOP_TERM);
@@ -856,8 +881,6 @@ public class ReportStacksWs extends AbstractWebScript implements ApplicationCont
 				}else{
 					cuenta=resultSet.length();
 				}
-
-
 			}else{
 
 				/* Si existen filtros exactMatch (ver descripción del método fakeTokenizeValue), se aplican recorriendo
@@ -905,6 +928,36 @@ public class ReportStacksWs extends AbstractWebScript implements ApplicationCont
 				addComponent(par.getFirst(),cuenta,resultFiltered, resolvePreffix);
 			}
 		}
+
+		/* A veces, aun teniendo activado el precission mode para los nombres de usuarios tokenizados,
+		 * Sucede que en el índice tenemos tanto el nombre de usuario tokenizado y no tokenizado (¿por qué???)
+		 * En ese caso con las operaciones anteriores solo hemos expandido el valor del nombre tokenizado para un término del índice, pero tenemos
+		 * otra componente con el nombre sin tokenizar. El valor expandido del término tokenizado y el término sin tokenizar son el mismo, por lo
+		 * que deberemos combinarlos en uno.
+		 */
+
+		if(resultFiltered.size()>1 && precissionMode  && by.equals("creator") || by.equals("modifier") ) {
+			Collections.sort(resultFiltered, new Comparator<String[]>() {  
+				public int compare(String[] arg0, String[] arg1) {
+					return arg0[0].compareTo(arg1[0]);
+				}  });
+
+			//ArrayList<String[]> compactResultFiltered=new ArrayList<String[]>();
+			int i=0;
+
+			while(i<resultFiltered.size()){
+
+				while(i<resultFiltered.size()-1 && resultFiltered.get(i)[0].equalsIgnoreCase(resultFiltered.get(i+1)[0]) ){
+					int preLastCount=Integer.valueOf(resultFiltered.get(i)[1]);
+					int lastCount=Integer.valueOf(resultFiltered.get(i+1)[1]);
+					resultFiltered.get(i)[1]=Integer.toString(preLastCount+lastCount);
+					resultFiltered.remove(i+1);
+				}
+
+				i++;
+			}
+
+		}
 		return resultFiltered;
 	}
 
@@ -919,17 +972,17 @@ public class ReportStacksWs extends AbstractWebScript implements ApplicationCont
 			return "["+min+" TO "+max+"]";
 		}if(by.equals("created") || by.equals("modified")){
 			/*En la wiki (http://wiki.alfresco.com/wiki/Search) dice:
-			*The query parser expects the date in ISO 8601 datetime format "yyyy-MM-dd'T'HH:mm:ss.sssZ". Truncated forms of this date are also supported.
-			*Con el subsistema solr parece que esto es cierto, así que no haría falta convertir la fecha yyyy-mm, ya que este valor a la consulta es válido
-			*Con lucene esto no es cierto, por lo que para obtener los documentos de un mes dado, habría que hacer la consulta tomando el intervalo
-			*desde el comienzo del mes hasta el final. Con el subsistema solr esta solución también es válida.
-			*/
+			 *The query parser expects the date in ISO 8601 datetime format "yyyy-MM-dd'T'HH:mm:ss.sssZ". Truncated forms of this date are also supported.
+			 *Con el subsistema solr parece que esto es cierto, así que no haría falta convertir la fecha yyyy-mm, ya que este valor a la consulta es válido
+			 *Con lucene esto no es cierto, por lo que para obtener los documentos de un mes dado, habría que hacer la consulta tomando el intervalo
+			 *desde el comienzo del mes hasta el final. Con el subsistema solr esta solución también es válida.
+			 */
 			Calendar c=GregorianCalendar.getInstance();
 			//Suponemos que value es de la forma yyyy-mm (año-mes)!!
 			c.setTime(ISO8601DateFormat.parse(value+"-01T00:00:00.000+00:00"));
 			int lastDayOfCurrentMonth=c.getActualMaximum(Calendar.DAY_OF_MONTH);
 			return "["+value+"-01 TO "+value+"-"+String.format("%02d",lastDayOfCurrentMonth)+"]";
-			
+
 		}
 		return value;
 
@@ -1218,15 +1271,28 @@ public class ReportStacksWs extends AbstractWebScript implements ApplicationCont
 		 * Como en el init del bean se llama beans del subsistema que aún no han sido inicializados, 
 		 * hace que falle la inicialización de alfresco.
 		 * */
+		//TODO: poco elegante el uso de las constantes "4" y "3"
+		if("4".equals(descriptorService.getCurrentRepositoryDescriptor().getVersionMajor())){
+			SwitchableApplicationContextFactory sw=(SwitchableApplicationContextFactory) applicationContext.getBean("Search");
+			Object tmp=sw.getApplicationContext().getBean("search.admLuceneIndexerAndSearcherFactory");
+			if(tmp instanceof org.alfresco.repo.search.impl.lucene.ADMLuceneIndexerAndSearcherFactory ){
+				admLuceneIndexerAndSearcherFactory=(org.alfresco.repo.search.impl.lucene.ADMLuceneIndexerAndSearcherFactory)tmp;	
+			}
 
-		//TODO, preparar también la inicialización para contexto de alfresco 3.4.X
-		SwitchableApplicationContextFactory sw=(SwitchableApplicationContextFactory) applicationContext.getBean("Search");
-		Object tmp=sw.getApplicationContext().getBean("search.admLuceneIndexerAndSearcherFactory");
-		if(tmp instanceof org.alfresco.repo.search.impl.lucene.ADMLuceneIndexerAndSearcherFactory ){
-			admLuceneIndexerAndSearcherFactory=(org.alfresco.repo.search.impl.lucene.ADMLuceneIndexerAndSearcherFactory)tmp;	
+			luceneSearchServiceInitializationCompleted=true;
+		}else if("3".equals(descriptorService.getCurrentRepositoryDescriptor().getVersionMajor()) &&
+				"4".equals(descriptorService.getCurrentRepositoryDescriptor().getVersionMinor())){
+			Object tmp=applicationContext.getBean("admLuceneIndexerAndSearcherFactory");
+			if(tmp instanceof org.alfresco.repo.search.impl.lucene.ADMLuceneIndexerAndSearcherFactory ){
+				admLuceneIndexerAndSearcherFactory=(org.alfresco.repo.search.impl.lucene.ADMLuceneIndexerAndSearcherFactory)tmp;	
+			}
+
+			luceneSearchServiceInitializationCompleted=true;
+
+		}else{
+			//TODO: localizar, aprovechar para dar un bean con la version del dashlet que se pueda mostrar en un posible acerca de
+			throw new RuntimeException("Versión de alfresco no soportada: sólo se permite su uso en la 3.4 y 4.x ");
 		}
-
-		initializationCompleted=true;
 
 
 	}
@@ -1262,6 +1328,7 @@ public class ReportStacksWs extends AbstractWebScript implements ApplicationCont
 		}
 
 		public List<Pair<String, Integer>> getTopTerms(String field,	int limitTopTerm) {
+			//TODO: el host?? siempre es localhost??
 			String url="/solr/alfresco/select/?q={0}&start=0&rows=0&indent=on&facet=on&facet.field={1}&facet.limit={2}";
 			URLCodec encoder = new URLCodec();
 			ArrayList<Pair<String, Integer>> termList=new  ArrayList<Pair<String, Integer>>();
