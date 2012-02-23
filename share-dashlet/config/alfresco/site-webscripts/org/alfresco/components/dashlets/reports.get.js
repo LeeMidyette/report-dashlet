@@ -21,3 +21,28 @@
  *  but it is not an Alfresco product and has not been tested, endorsed, or 
  *  approved by Alfresco Software, Inc. or any of its affiliates.
 */
+
+/*Code from alfresco share: alfresco/site-webscripts/org/alfresco/modules/about-share.get.js */
+
+function main()
+{
+   // Call the repo to collect server meta-data
+   var conn = remote.connect("alfresco");
+   var res = conn.get("/api/server");
+   var json = eval('(' + res + ')');
+
+   // Create model and defaults
+   model.serverEdition = "Unknown";
+   model.serverVersion = "Unknown (Unknown)";
+   model.serverSchema = "Unknown";
+
+   // Check if we got a positive result
+   if (json.data)
+   {
+      model.serverEdition = json.data.edition;
+      model.serverVersion = json.data.version;
+      model.serverSchema = json.data.schema;
+   }
+}
+
+main();

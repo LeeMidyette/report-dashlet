@@ -52,6 +52,11 @@
 #downloadify-wrapper{	margin-left: 1em; float: right;}
 #downloadify{	height: 32px;}
 
+.content-report-body{
+   margin-left: 10px;
+   margin-right: 10px;
+  }
+    
 /** Estilos para la consola de administracion*/
 
 .report-console .title {

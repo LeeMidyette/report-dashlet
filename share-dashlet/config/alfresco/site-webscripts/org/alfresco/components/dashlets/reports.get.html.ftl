@@ -32,8 +32,13 @@
 <div class="dashlet">
    <div class="title">${msg("header.dashletTitle")}</div>
 
+   	<#if serverVersion?starts_with("4")>
+		<#assign assignedClass="content-report-body">
+	<#else>
+		<#assign assignedClass="">
+	</#if>
 
-   <div  id="${args.htmlid}-panel" class="body scrollableList" <#if args.height??>style="height: ${args.height}px;"</#if> >
+   <div  id="${args.htmlid}-panel" class="body scrollableList ${assignedClass}" <#if args.height??>style="height: ${args.height}px;"</#if> >
 
 	<div id="group-by-container" >
 
