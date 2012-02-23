@@ -9,13 +9,13 @@ information (chart and table) from repository contents stacked by some property 
 
 Author
 ------
-Pedro Salido López (psalido@dashlet.info - http://www.dashlet.info)
+Pedro Salido Lï¿½pez (psalido@dashlet.info - http://www.dashlet.info)
 
 
 Installation
 ------------
 
-The component has been developed to install on top of an existing Alfresco 3.4 installation.
+The component has been developed to install on top of an existing Alfresco 3.4.x, 4.0.0 (solr or lucene config) installation.
 
 An Ant build script is provided to build a JAR file containing the 
 custom files, which can then be installed into the 'tomcat/shared/lib' folder 
@@ -38,6 +38,9 @@ directories within your Alfresco installation, and restart the application serve
     
 Once you have run this you will need to restart Tomcat so that the classpath 
 resources in the JAR file are picked up.
+
+IMPORTANT:
+This component depend on "Report Dashlet" alfresco repository module (provided as AMP)
 
 Using the component
 -------------------
