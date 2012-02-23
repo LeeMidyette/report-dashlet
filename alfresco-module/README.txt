@@ -14,7 +14,8 @@ Pedro Salido López (psalido@dashlet.info - http://www.dashlet.info)
 
 Pre-requisites
 --------------
-Alfresco 3.4 or better (this package tested on Alfresco Enterprise 3.4SP1).
+Alfresco 3.4.x  (this package tested on Alfresco Enterprise 3.4.6).
+Alfresco 4.0  (this package tested on Alfresco Enterprise 4.0.0).
 
 
 Installation

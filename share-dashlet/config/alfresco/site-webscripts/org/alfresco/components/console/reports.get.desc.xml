@@ -1,0 +1,6 @@
+<webscript>
+   <shortname>Content Report</shortname>
+   <description>Reports from repository content</description>
+   <family>admin-console</family>
+   <url>/components/console/reports</url>
+</webscript>

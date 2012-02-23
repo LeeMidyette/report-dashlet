@@ -1336,7 +1336,7 @@ public class ReportStacksWs extends AbstractWebScript implements ApplicationCont
 				Object [] obj={"*:*",encoder.encode(field, "UTF-8"),limitTopTerm};
 
 				PostMethod post = new PostMethod(MessageFormat.format(url.toString(),obj));
-				System.err.println(post.getURI());
+				logger.debug("Url post to solr"+post.getURI());
 				httpClient.executeMethod(post);
 
 				if(post.getStatusCode() == HttpStatus.SC_MOVED_PERMANENTLY || post.getStatusCode() == HttpStatus.SC_MOVED_TEMPORARILY)
@@ -1369,7 +1369,7 @@ public class ReportStacksWs extends AbstractWebScript implements ApplicationCont
 					JSONObject facetFields=facetCounts.getJSONObject("facet_fields");
 					if(facetFields!=null){
 
-						System.err.println(facetFields);
+						logger.debug(facetFields);
 						JSONArray jsonArrayFacetFields = facetFields.getJSONArray(field);
 						for(int i=0; i< jsonArrayFacetFields.length();i+=2){
 							String term=(String)jsonArrayFacetFields.get(i);

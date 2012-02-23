@@ -197,7 +197,7 @@
             <globmapper from="alfresco/web-extension/*.xml" to="*.xml" handledirsep="true" />
         </copy>
         <!-- Minify JS -->
-        <yuicompress fromdir="${res.dir}" todir="${build.jar.dir}/META-INF" excludes="**/*-min.js" warn="${yuicompress.warn}">
+        <yuicompress charset="UTF-8" fromdir="${res.dir}" todir="${build.jar.dir}/META-INF" excludes="**/*-min.js" warn="${yuicompress.warn}">
             <include name="**/*.js" />
         </yuicompress>
     </target>
@@ -240,7 +240,7 @@
             <fileset dir="${res.dir}" includes="${build.res.includes}" excludes="${build.res.excludes}" />
         </copy>
         <!-- Minify JS -->
-        <yuicompress fromdir="${res.dir}" todir="${build.zip.dir}/${build.res.dir}" excludes="**/*-min.js" warn="${yuicompress.warn}">
+        <yuicompress charset="UTF-8" fromdir="${res.dir}" todir="${build.zip.dir}/${build.res.dir}" excludes="**/*-min.js" warn="${yuicompress.warn}">
             <include name="**/*.js" />
         </yuicompress>
     </target>
@@ -311,7 +311,7 @@
          </copy>
         
        <!-- Minify JS -->
-       <yuicompress fromdir="${res.dir}" todir="${build.amp.dir}/web" excludes="**/*-min.js" warn="${yuicompress.warn}">
+       <yuicompress charset="UTF-8" fromdir="${res.dir}" todir="${build.amp.dir}/web" excludes="**/*-min.js" warn="${yuicompress.warn}">
           <include name="**/*.js" />
        </yuicompress>
     </target>

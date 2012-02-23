@@ -1,7 +1,7 @@
 /*
  *  Content Reports Dashlet for Alfresco (http://www.dashlet.info)
  *  
- *  Copyright (C) 2011 Pedro Salido López <psalido@dashlet.info>
+ *  Copyright (C) 2011, 2012 Pedro Salido López <psalido@dashlet.info>
  *  
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

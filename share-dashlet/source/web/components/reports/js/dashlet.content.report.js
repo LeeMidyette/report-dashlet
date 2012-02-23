@@ -1,7 +1,7 @@
 /*
  *  Content Reports Dashlet for Alfresco (http://www.dashlet.info)
  *  
- *  Copyright (C) 2011 Pedro Salido López <psalido@dashlet.info>
+ *  Copyright (C) 2011, 2012 Pedro Salido López <psalido@dashlet.info>
  *
  *  The JavaScript code in this page is free software: you can
  *  redistribute it and/or modify it under the terms of the GNU
@@ -341,7 +341,7 @@ function fillDataTable(data){
 
 	jQuery( "#accordion-collapsible" ).accordion({
 		collapsible: true,
-		active: 1
+		active: typeof(isDashlet)!="undefined"?1:0
 	});
 
 	jQuery( "#accordion-collapsible" ).accordion( "resize" )

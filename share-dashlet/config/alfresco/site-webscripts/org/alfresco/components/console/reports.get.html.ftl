@@ -21,20 +21,26 @@
  *  but it is not an Alfresco product and has not been tested, endorsed, or 
  *  approved by Alfresco Software, Inc. or any of its affiliates.
 -->
+<#-- Hidden iframe is used by yui-history module -->
+<!--[if IE]>
+<iframe id="yui-history-iframe" src="${url.context}/res/yui/history/assets/blank.html"></iframe> 
+<![endif]-->
+<input id="yui-history-field" type="hidden" />
+
+<#assign el=args.htmlid?html>
+
 <script type="text/javascript">//<![CDATA[
 	 var reportDashletName="Alfresco.dashlet.Report";
-   new Alfresco.widget.DashletResizer("${args.htmlid}", "${instance.object.id}");
    var url_context='${page.url.context}';
    var locale='${locale}';
-   Alfresco.util.addMessages(${messages}, reportDashletName);
-   var isDashlet=true;
+   Alfresco.util.addMessages(${messages}, reportDashletName)
 //]]></script>
-<div class="dashlet">
-   <div class="title">${msg("header.dashletTitle")}</div>
 
 
-   <div  id="${args.htmlid}-panel" class="body scrollableList" <#if args.height??>style="height: ${args.height}px;"</#if> >
-
+   <div  id="${args.htmlid}-panel" class="admin-console-body report-console" <#if args.height??>style="height: ${args.height}px;"</#if> >
+   
+	<div class="title">${msg("header.dashletTitle")}</div>
+	<br/>
 	<div id="group-by-container" >
 
 			<label><h3>${msg("label.groupBy")} </h3><select id="by_type" >
@@ -169,9 +175,7 @@
 
 
 
-   </div> <!-- cierra scrollableList del dashlet-->
+   </div>
 
 
-
-</div> <!-- cierra dashlet -->
 

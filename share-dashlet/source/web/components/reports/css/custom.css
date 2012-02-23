@@ -51,3 +51,15 @@
 #gRaphael-container{overflow-x: hidden;}
 #downloadify-wrapper{	margin-left: 1em; float: right;}
 #downloadify{	height: 32px;}
+
+/** Estilos para la consola de administracion*/
+
+.report-console .title {
+    font-size: 123.1%;
+    font-weight: bold;
+    padding-bottom: 0.5em;
+}
+
+.report-console {
+    margin: 16px 10px 10px;
+}
