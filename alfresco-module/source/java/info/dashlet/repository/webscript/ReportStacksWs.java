@@ -26,7 +26,6 @@ package info.dashlet.repository.webscript;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.Serializable;
@@ -45,7 +44,6 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
 import javax.servlet.http.HttpServletResponse;
 
@@ -106,6 +104,12 @@ import org.springframework.extensions.webscripts.WebScriptResponse;
  * Class ReportStacksWs.
  */
 public class ReportStacksWs extends AbstractWebScript implements ApplicationContextAware {
+
+	private static final String _ALF_MAJOR_VERSION_3 = "3";
+	private static final String _ALF_MAJOR_VERSION_4 = "4";
+	private static final String _ALF_MINOR_VERSION_2 = "2";
+	private static final String _ALF_MINOR_VERSION_4 = "4";
+
 
 	/** La Constante logger. */
 	private static final Logger logger = Logger.getLogger(ReportStacksWs.class);
@@ -260,7 +264,6 @@ public class ReportStacksWs extends AbstractWebScript implements ApplicationCont
 	/** La Constante filterBy. */
 	private final static Hashtable<String,String> filterBy=new Hashtable<String,String>();
 
-	private static final Integer DEFAULT_OLDEST_YEAR = 1999;
 
 	static{
 
@@ -579,22 +582,26 @@ public class ReportStacksWs extends AbstractWebScript implements ApplicationCont
 		List<Pair<String,Integer>> listaGlobalTerminos=null;
 		if(key.equals("created") || key.equals("modified")){
 
+			Integer oldestYear=PropertiesLoader.getDefaulLucenetMinDocumentYear();
+			Integer newestYear=PropertiesLoader.getDefaultLuceneMaxDocumentYear();
 
-			Serializable oldestDate="";
-			Serializable newestDate="";
-			Serializable [] minMaxDate=getMinMaxRepositoryDocumentDate(key);
-			oldestDate=minMaxDate[0];
-			newestDate=minMaxDate[1];
+			//si estamos en solr, recomputamos los valores machacando los del properties (que solo se tienen en cuenta con lucene como subsistema de busqueda)
+			if(admLuceneIndexerAndSearcherFactory==null){
+				Serializable oldestDate="";
+				Serializable newestDate="";
 
-			Integer oldestYear=DEFAULT_OLDEST_YEAR;
-			Integer newestYear=GregorianCalendar.getInstance().get(Calendar.YEAR);
+				Serializable [] minMaxDate=getMinMaxRepositoryDocumentDate(key);
+				oldestDate=minMaxDate[0];
+				newestDate=minMaxDate[1];
 
-			SimpleDateFormat simpleDateformat=new SimpleDateFormat("yyyy");
-			if(oldestDate instanceof java.util.Date && Integer.valueOf(simpleDateformat.format(oldestDate))!=null){
-				oldestYear=Integer.valueOf(simpleDateformat.format(oldestDate));
-			}
-			if(newestDate instanceof java.util.Date && Integer.valueOf(simpleDateformat.format(newestDate))!=null){
-				newestYear=Integer.valueOf(simpleDateformat.format(newestDate));
+
+				SimpleDateFormat simpleDateformat=new SimpleDateFormat("yyyy");
+				if(oldestDate instanceof java.util.Date && Integer.valueOf(simpleDateformat.format(oldestDate))!=null){
+					oldestYear=Integer.valueOf(simpleDateformat.format(oldestDate));
+				}
+				if(newestDate instanceof java.util.Date && Integer.valueOf(simpleDateformat.format(newestDate))!=null){
+					newestYear=Integer.valueOf(simpleDateformat.format(newestDate));
+				}
 			}
 
 			listaGlobalTerminos=new ArrayList<Pair<String,Integer>>();
@@ -672,17 +679,9 @@ public class ReportStacksWs extends AbstractWebScript implements ApplicationCont
 			Pair<Long,Integer> translatedPair=new Pair<Long,Integer>(byteSizeGroup,pair.getSecond());
 			translatedListaGlobalterminos.add(translatedPair);
 		}
-		ClassLoader cl = this.getClass().getClassLoader();
-		InputStream is = cl.getResourceAsStream("info/dashlet/repository/sizegroups.properties");
 
-		Properties props = new Properties();
-		try {
-			props.load(is);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		String rangesStr = PropertiesLoader.getDefaultSizeRanges();
 
-		String rangesStr=props.getProperty("ranges");
 		String [] groups=rangesStr.split(",");
 
 		ArrayList<Pair<String, Integer>> formattedListaGlobalterminos=new ArrayList<Pair<String, Integer>>();
@@ -1271,8 +1270,7 @@ public class ReportStacksWs extends AbstractWebScript implements ApplicationCont
 		 * Como en el init del bean se llama beans del subsistema que aún no han sido inicializados, 
 		 * hace que falle la inicialización de alfresco.
 		 * */
-		//TODO: poco elegante el uso de las constantes "4" y "3"
-		if("4".equals(descriptorService.getCurrentRepositoryDescriptor().getVersionMajor())){
+		if(_ALF_MAJOR_VERSION_4.equals(descriptorService.getCurrentRepositoryDescriptor().getVersionMajor())){
 			SwitchableApplicationContextFactory sw=(SwitchableApplicationContextFactory) applicationContext.getBean("Search");
 			Object tmp=sw.getApplicationContext().getBean("search.admLuceneIndexerAndSearcherFactory");
 			if(tmp instanceof org.alfresco.repo.search.impl.lucene.ADMLuceneIndexerAndSearcherFactory ){
@@ -1280,8 +1278,8 @@ public class ReportStacksWs extends AbstractWebScript implements ApplicationCont
 			}
 
 			luceneSearchServiceInitializationCompleted=true;
-		}else if("3".equals(descriptorService.getCurrentRepositoryDescriptor().getVersionMajor()) &&
-				"4".equals(descriptorService.getCurrentRepositoryDescriptor().getVersionMinor())){
+		}else if(_ALF_MAJOR_VERSION_3.equals(descriptorService.getCurrentRepositoryDescriptor().getVersionMajor()) &&
+				_ALF_MINOR_VERSION_4.equals(descriptorService.getCurrentRepositoryDescriptor().getVersionMinor())){
 			Object tmp=applicationContext.getBean("admLuceneIndexerAndSearcherFactory");
 			if(tmp instanceof org.alfresco.repo.search.impl.lucene.ADMLuceneIndexerAndSearcherFactory ){
 				admLuceneIndexerAndSearcherFactory=(org.alfresco.repo.search.impl.lucene.ADMLuceneIndexerAndSearcherFactory)tmp;	
